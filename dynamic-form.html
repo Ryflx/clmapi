@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Workflow Form</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .config-banner {
+            background: #e8f5e8;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .config-banner.warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        
+        .config-banner.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .config-info {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .config-info h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .dynamic-form .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .dynamic-form label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .dynamic-form input,
+        .dynamic-form textarea,
+        .dynamic-form select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .dynamic-form textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .xml-preview {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .xml-preview h4 {
+            margin-top: 0;
+            font-family: inherit;
+        }
+        
+        .form-actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            position: relative;
+        }
+        
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            width: 16px;
+            height: 16px;
+            margin-top: -8px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="portal-nav">
+            <div class="nav-brand">
+                <a href="index.html">← Portal Home</a>
+            </div>
+            <div class="nav-title">
+                <h2>Dynamic Workflow Form</h2>
+            </div>
+            <div class="nav-actions">
+                <a href="config.html" class="nav-link">⚙️ Configure</a>
+                <a href="tasks.html" class="nav-link">📋 Tasks</a>
+            </div>
+        </nav>
+
+        <header>
+            <h1 id="pageTitle">Workflow Submission Form</h1>
+            <p id="pageDescription">Complete the form below to submit your workflow</p>
+        </header>
+
+        <!-- Configuration Status -->
+        <div id="configStatus">
+            <!-- Will be populated by JavaScript -->
+        </div>
+
+        <!-- Dynamic Form Section -->
+        <div class="form-section">
+            <form id="dynamicForm">
+                <div id="dynamicFields">
+                    <!-- Dynamic fields will be generated here -->
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="previewXML()">Preview XML</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">Submit Workflow</button>
+                </div>
+            </form>
+            
+            <!-- Status Display -->
+            <div id="submissionStatus" class="status-display"></div>
+            
+            <!-- XML Preview -->
+            <div id="xmlPreview" class="xml-preview" style="display: none;">
+                <h4>Generated XML Preview:</h4>
+                <pre id="xmlContent"></pre>
+            </div>
+        </div>
+
+
+    </div>
+    
+    <script src="script.js"></script>
+    <script>
+        let currentConfig = {};
+        let dynamicFields = [];
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDynamicForm();
+        });
+        
+        function initializeDynamicForm() {
+            currentConfig = getWorkflowConfiguration();
+            
+            if (!isDynamicModeEnabled()) {
+                showConfigurationError();
+                return;
+            }
+            
+            // Update page title and description
+            document.getElementById('pageTitle').textContent = currentConfig.workflowName || 'Workflow Submission Form';
+            document.getElementById('pageDescription').textContent = `Complete the form below to submit to: ${currentConfig.workflowName}`;
+            
+            // Parse fields from configuration
+            dynamicFields = currentConfig.fields || [];
+            
+            // Generate the form
+            generateDynamicForm('dynamicFields', dynamicFields);
+            
+            // Show configuration info
+            showConfigurationInfo();
+            
+            // Setup form submission
+            setupFormSubmission();
+        }
+        
+        function showConfigurationError() {
+            document.getElementById('configStatus').innerHTML = `
+                <div class="config-banner error">
+                    <h3>⚠️ No Configuration Found</h3>
+                    <p>This form requires workflow configuration. Please set up your workflow first.</p>
+                    <a href="config.html" class="btn btn-primary">Configure Workflow</a>
+                </div>
+            `;
+            
+            // Hide the form
+            document.querySelector('.form-section').style.display = 'none';
+        }
+        
+        function showConfigurationInfo() {
+            const hasToken = !!localStorage.getItem('docusign_clm_token');
+            
+            document.getElementById('configStatus').innerHTML = `
+                <div class="config-info">
+                    <h3>📋 Current Configuration</h3>
+                    <p><strong>Workflow:</strong> ${currentConfig.workflowName}</p>
+                    <p><strong>Fields:</strong> ${dynamicFields.length} form fields</p>
+                    <p><strong>API Token:</strong> ${hasToken ? '✅ Configured' : '❌ Not configured - <a href="admin.html">Configure in Admin</a>'}</p>
+                    ${currentConfig.baseUrl ? `<p><strong>Base URL:</strong> ${currentConfig.baseUrl}</p>` : ''}
+                </div>
+            `;
+        }
+        
+        function setupFormSubmission() {
+            const form = document.getElementById('dynamicForm');
+            form.addEventListener('submit', handleFormSubmission);
+        }
+        
+        async function handleFormSubmission(event) {
+            event.preventDefault();
+            
+            const token = localStorage.getItem('docusign_clm_token');
+            if (!token) {
+                showSubmissionStatus('API token not configured. Please set it up in the Admin panel first.', 'error');
+                return;
+            }
+            
+            // Collect form data
+            const formData = {};
+            const form = document.getElementById('dynamicForm');
+            const formDataObj = new FormData(form);
+            
+            for (let [key, value] of formDataObj.entries()) {
+                formData[key] = value;
+            }
+            
+            console.log('Form data collected:', formData);
+            
+            try {
+                setSubmitButtonState(true);
+                showSubmissionStatus('Submitting workflow...', 'info');
+                
+                // Submit to Docusign CLM
+                const result = await submitToDocusignCLM(formData, token);
+                
+                console.log('Workflow submission result:', result);
+                showSubmissionStatus('Workflow submitted successfully! 🎉', 'success');
+                
+                // Reset form
+                form.reset();
+                
+            } catch (error) {
+                console.error('Submission error:', error);
+                showSubmissionStatus(`Submission failed: ${error.message}`, 'error');
+            } finally {
+                setSubmitButtonState(false);
+            }
+        }
+        
+        function previewXML() {
+            // Collect current form data
+            const formData = {};
+            const form = document.getElementById('dynamicForm');
+            const formDataObj = new FormData(form);
+            
+            for (let [key, value] of formDataObj.entries()) {
+                formData[key] = value;
+            }
+            
+            // Generate XML
+            const xmlData = createDynamicXMLParams(formData, dynamicFields);
+            
+            // Display preview
+            document.getElementById('xmlContent').textContent = xmlData;
+            document.getElementById('xmlPreview').style.display = 'block';
+        }
+        
+
+        
+        function setSubmitButtonState(isLoading) {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = isLoading;
+            
+            if (isLoading) {
+                submitBtn.classList.add('loading');
+                submitBtn.textContent = 'Submitting...';
+            } else {
+                submitBtn.classList.remove('loading');
+                submitBtn.textContent = 'Submit Workflow';
+            }
+        }
+        
+        function showSubmissionStatus(message, type) {
+            const statusDiv = document.getElementById('submissionStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-display ${type} show`;
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusDiv.classList.remove('show');
+                }, 5000);
+            }
+        }
+        
+
+    </script>
+</body>
+</html>

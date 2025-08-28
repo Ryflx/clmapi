@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Configuration</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .config-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .config-section {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .config-section h2 {
+            margin-top: 0;
+            color: #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .example-params {
+            min-height: 400px;
+        }
+        
+        .btn-primary {
+            background: #e74c3c;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .status-display {
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .status-display.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-display.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status-display.show {
+            display: block;
+        }
+        
+        .help-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .json-example {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        
+        .current-config {
+            background: #e8f5e8;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .header-nav {
+            margin-bottom: 20px;
+        }
+        
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: #5a6268;
+        }
+        
+        .field-selection-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .field-selection-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            transition: background-color 0.3s ease;
+        }
+        
+        .field-selection-item:hover {
+            background: #f0f0f0;
+        }
+        
+        .field-selection-item.selected {
+            background: #e8f5e8;
+            border-color: #c3e6cb;
+        }
+        
+        .field-checkbox {
+            margin: 0;
+            transform: scale(1.2);
+            accent-color: #FF5252;
+            flex-shrink: 0;
+        }
+        
+        .field-details {
+            flex: 1;
+        }
+        
+        .field-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .field-info {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 2px;
+        }
+        
+        .field-sample {
+            font-size: 12px;
+            color: #888;
+            font-style: italic;
+            background: #fff;
+            padding: 4px 8px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-top: 4px;
+        }
+        
+        .field-selection-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .color-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        #brandColorPicker {
+            width: 50px;
+            height: 40px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        #brandColor {
+            flex: 1;
+            max-width: 150px;
+        }
+        
+        .color-preview {
+            margin-top: 15px;
+        }
+        
+        .color-preview-samples {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .preview-btn {
+            background: #FF5252;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .preview-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .preview-text {
+            color: #FF5252;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .preview-border {
+            padding: 8px 12px;
+            border: 2px solid #FF5252;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #333;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-nav">
+                <button class="back-btn" onclick="window.location.href='index.html'">← Back to Main</button>
+            </div>
+            <h1>🔧 Workflow Configuration</h1>
+            <p>Configure your custom workflow and form structure</p>
+        </header>
+        
+
+        
+        <div class="config-container">
+            <!-- Current Configuration Display -->
+            <div class="config-section" id="currentConfigSection" style="display: none;">
+                <h2>📋 Current Configuration</h2>
+                <div class="current-config" id="currentConfigDisplay">
+                    <!-- Current config will be displayed here -->
+                </div>
+                <button class="btn-secondary" onclick="clearConfiguration()">Clear Configuration</button>
+            </div>
+            
+            <!-- Token Status Info -->
+            <div class="config-section">
+                <h2>🔐 API Token Status</h2>
+                <div id="tokenStatusInfo">
+                    <!-- Token status will be displayed here -->
+                </div>
+                <p><strong>Note:</strong> API tokens are managed in the <a href="admin.html">Admin panel</a>. Please configure your token there first.</p>
+            </div>
+            
+            <!-- Logo Configuration -->
+            <div class="config-section">
+                <h2>🎨 Branding Configuration</h2>
+                <div class="form-group">
+                    <label for="logoUrl">Logo URL:</label>
+                    <input type="url" id="logoUrl" placeholder="https://example.com/your-logo.png">
+                    <div class="help-text">Enter the URL of your company logo. This will be displayed on the main page banner. Leave empty to use no logo.</div>
+                </div>
+                <div class="logo-preview" id="logoPreview" style="display: none;">
+                    <strong>Logo Preview:</strong><br>
+                    <img id="logoPreviewImage" src="" alt="Logo Preview" style="max-width: 200px; max-height: 80px; margin-top: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div class="form-group">
+                    <label for="brandColor">Brand Color:</label>
+                    <div class="color-input-group">
+                        <input type="color" id="brandColorPicker" value="#FF5252">
+                        <input type="text" id="brandColor" placeholder="#FF5252" value="#FF5252" pattern="^#[0-9A-Fa-f]{6}$">
+                    </div>
+                    <div class="help-text">Choose your brand color. This will be used for buttons, links, and accent elements throughout the portal.</div>
+                </div>
+                <div class="color-preview" id="colorPreview">
+                    <strong>Color Preview:</strong><br>
+                    <div class="color-preview-samples">
+                        <button class="preview-btn">Sample Button</button>
+                        <div class="preview-text">Sample accent text</div>
+                        <div class="preview-border">Sample border element</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Workflow Configuration -->
+            <div class="config-section">
+                <h2>⚙️ Workflow Settings</h2>
+                <div class="form-group">
+                    <label for="workflowName">Workflow Name:</label>
+                    <input type="text" id="workflowName" placeholder="e.g., Customer Onboarding Workflow">
+                    <div class="help-text">The exact name of your workflow in Docusign CLM</div>
+                </div>
+                
+
+            </div>
+            
+            <!-- Example Parameters -->
+            <div class="config-section">
+                <h2>📝 Example Parameters</h2>
+                <p>Provide an example of the XML parameters your workflow expects. This will be used to generate the form fields dynamically.</p>
+                
+                <div class="form-group">
+                    <label for="exampleParams">Example XML Parameters:</label>
+                    <textarea id="exampleParams" class="example-params" placeholder="Paste your example XML parameters here..."></textarea>
+                    <div class="help-text">
+                        Paste the XML structure that your workflow expects. The system will parse this to create form fields.
+                    </div>
+                </div>
+                
+                <div class="json-example">
+                    <strong>Example XML Structure:</strong><br>
+                    &lt;TemplateFieldData&gt;<br>
+                    &nbsp;&nbsp;&lt;Customer_Name&gt;John Doe&lt;/Customer_Name&gt;<br>
+                    &nbsp;&nbsp;&lt;Email_Address&gt;john@example.com&lt;/Email_Address&gt;<br>
+                    &nbsp;&nbsp;&lt;Phone_Number&gt;555-1234&lt;/Phone_Number&gt;<br>
+                    &nbsp;&nbsp;&lt;Company_Name&gt;Acme Corp&lt;/Company_Name&gt;<br>
+                    &nbsp;&nbsp;&lt;Service_Type&gt;Premium&lt;/Service_Type&gt;<br>
+                    &nbsp;&nbsp;&lt;Contract_Duration&gt;12 months&lt;/Contract_Duration&gt;<br>
+                    &lt;/TemplateFieldData&gt;
+                </div>
+            </div>
+            
+            <!-- Field Selection -->
+            <div class="config-section" id="fieldSelectionSection" style="display: none;">
+                <h2>🎯 Select Form Fields</h2>
+                <p>Choose which XML fields should be included in your form:</p>
+                <div id="fieldSelectionList">
+                    <!-- Field checkboxes will be generated here -->
+                </div>
+                <div class="field-selection-actions">
+                    <button class="btn-secondary" onclick="selectAllFields()">Select All</button>
+                    <button class="btn-secondary" onclick="deselectAllFields()">Deselect All</button>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="config-section">
+                <h2>💾 Save Configuration</h2>
+                <button class="btn-primary" onclick="saveConfiguration()">Save Configuration</button>
+                <button class="btn-secondary" onclick="testConfiguration()">Test Configuration</button>
+                <button class="btn-secondary" onclick="previewForm()">Preview Form</button>
+                <div id="configStatus" class="status-display"></div>
+            </div>
+            
+            <!-- Form Preview -->
+            <div class="config-section" id="formPreviewSection" style="display: none;">
+                <h2>👁️ Form Preview</h2>
+                <div id="formPreview">
+                    <!-- Generated form preview will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+    <script>
+        // Configuration management functions
+        
+        function loadCurrentConfiguration() {
+            const config = getWorkflowConfiguration();
+            if (config && Object.keys(config).length > 0) {
+                document.getElementById('currentConfigSection').style.display = 'block';
+                document.getElementById('currentConfigDisplay').innerHTML = `
+                    <strong>Workflow Name:</strong> ${config.workflowName || 'Not set'}<br>
+                    <strong>Logo URL:</strong> ${config.logoUrl || 'Not set'}<br>
+                    <strong>Brand Color:</strong> ${config.brandColor || '#FF5252'}<br>
+                    <strong>Form Fields:</strong> ${config.fields ? config.fields.length : 0} fields configured<br>
+                    <strong>Last Updated:</strong> ${config.lastUpdated ? new Date(config.lastUpdated).toLocaleString() : 'Never'}
+                `;
+                
+                // Populate form fields
+                document.getElementById('workflowName').value = config.workflowName || '';
+                document.getElementById('logoUrl').value = config.logoUrl || '';
+                document.getElementById('brandColor').value = config.brandColor || '#FF5252';
+                document.getElementById('brandColorPicker').value = config.brandColor || '#FF5252';
+                document.getElementById('exampleParams').value = config.exampleParams || '';
+                
+                // Show logo preview if URL exists
+                if (config.logoUrl) {
+                    showLogoPreview(config.logoUrl);
+                }
+                
+                // Update color preview
+                updateColorPreview(config.brandColor || '#FF5252');
+            }
+            
+            // Check if token exists and show status
+            const token = localStorage.getItem('docusign_clm_token');
+            const tokenStatusDiv = document.getElementById('tokenStatusInfo');
+            if (token) {
+                tokenStatusDiv.innerHTML = '<div style="color: #28a745;">✅ API Token is configured and ready to use</div>';
+            } else {
+                tokenStatusDiv.innerHTML = '<div style="color: #dc3545;">❌ API Token not configured. Please set it up in <a href="admin.html">Admin panel</a>.</div>';
+            }
+        }
+        
+
+        
+        function saveConfiguration() {
+            const workflowName = document.getElementById('workflowName').value.trim();
+            const logoUrl = document.getElementById('logoUrl').value.trim();
+            const brandColor = document.getElementById('brandColor').value.trim();
+            const exampleParams = document.getElementById('exampleParams').value.trim();
+            
+            if (!workflowName) {
+                showConfigStatus('Please enter a workflow name', 'error');
+                return;
+            }
+            
+            if (!exampleParams) {
+                showConfigStatus('Please provide example parameters', 'error');
+                return;
+            }
+            
+            try {
+                let fields;
+                
+                // Use current fields if they exist (with selection), otherwise parse fresh
+                if (window.currentFields) {
+                    fields = window.currentFields.filter(field => field.selected);
+                    if (fields.length === 0) {
+                        showConfigStatus('Please select at least one field before saving', 'error');
+                        return;
+                    }
+                } else {
+                    // Parse the XML to extract field definitions (fallback for direct save without preview)
+                    fields = parseXMLToFields(exampleParams);
+                }
+                
+                const config = {
+                    workflowName,
+                    logoUrl,
+                    brandColor,
+                    exampleParams,
+                    fields,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                localStorage.setItem('workflow_configuration', JSON.stringify(config));
+                showConfigStatus(`Configuration saved successfully! Saved ${fields.length} form fields.`, 'success');
+                loadCurrentConfiguration(); // Refresh display
+                
+            } catch (error) {
+                showConfigStatus('Error parsing XML: ' + error.message, 'error');
+            }
+        }
+        
+        function clearConfiguration() {
+            localStorage.removeItem('workflow_configuration');
+            document.getElementById('workflowName').value = '';
+            document.getElementById('logoUrl').value = '';
+            document.getElementById('brandColor').value = '#FF5252';
+            document.getElementById('brandColorPicker').value = '#FF5252';
+            document.getElementById('exampleParams').value = '';
+            document.getElementById('currentConfigSection').style.display = 'none';
+            document.getElementById('formPreviewSection').style.display = 'none';
+            document.getElementById('logoPreview').style.display = 'none';
+            updateColorPreview('#FF5252');
+            showConfigStatus('Configuration cleared successfully!', 'success');
+        }
+        
+        function testConfiguration() {
+            const config = getWorkflowConfiguration();
+            if (!config || !config.workflowName) {
+                showConfigStatus('Please save configuration first', 'error');
+                return;
+            }
+            
+            const token = localStorage.getItem('docusign_clm_token');
+            if (!token) {
+                showConfigStatus('Please save API token first', 'error');
+                return;
+            }
+            
+            showConfigStatus('Configuration test passed! ✅', 'success');
+        }
+        
+        function previewForm() {
+            const exampleParams = document.getElementById('exampleParams').value.trim();
+            
+            if (!exampleParams) {
+                showConfigStatus('Please provide example parameters first', 'error');
+                return;
+            }
+            
+            try {
+                const fields = parseXMLToFields(exampleParams);
+                generateFieldSelection(fields);
+                showConfigStatus(`Found ${fields.length} fields. Please select which ones to include in your form.`, 'success');
+                
+            } catch (error) {
+                showConfigStatus('Error parsing XML: ' + error.message, 'error');
+            }
+        }
+        
+        function generateFieldSelection(fields) {
+            const fieldSelectionList = document.getElementById('fieldSelectionList');
+            fieldSelectionList.innerHTML = '';
+            fieldSelectionList.className = 'field-selection-list';
+            
+            fields.forEach((field, index) => {
+                const fieldItem = document.createElement('div');
+                fieldItem.className = 'field-selection-item selected';
+                fieldItem.innerHTML = `
+                    <input type="checkbox" 
+                           id="field-${index}" 
+                           class="field-checkbox" 
+                           checked 
+                           onchange="toggleFieldSelection(${index}, this.checked)">
+                    <div class="field-details">
+                        <div class="field-name">${field.label}</div>
+                        <div class="field-info">Type: ${field.type} • XML Tag: ${field.name}</div>
+                        <div class="field-sample">Sample: "${field.sampleValue}"</div>
+                    </div>
+                `;
+                fieldSelectionList.appendChild(fieldItem);
+            });
+            
+            // Store fields globally for later use
+            window.currentFields = fields;
+            
+            // Show the field selection section
+            document.getElementById('fieldSelectionSection').style.display = 'block';
+            
+            // Add a new button to generate preview with selected fields
+            const previewButton = document.createElement('button');
+            previewButton.className = 'btn-primary';
+            previewButton.textContent = 'Generate Form Preview';
+            previewButton.onclick = generateFormPreviewFromSelection;
+            
+            const actionDiv = document.querySelector('.field-selection-actions');
+            if (!actionDiv.querySelector('.btn-primary')) {
+                actionDiv.appendChild(previewButton);
+            }
+        }
+        
+        function generateFormPreviewFromSelection() {
+            if (!window.currentFields) {
+                showConfigStatus('No fields available. Please parse XML first.', 'error');
+                return;
+            }
+            
+            const selectedFields = window.currentFields.filter(field => field.selected);
+            
+            if (selectedFields.length === 0) {
+                showConfigStatus('Please select at least one field for the form.', 'error');
+                return;
+            }
+            
+            const formHtml = generateFormPreview(selectedFields);
+            document.getElementById('formPreview').innerHTML = formHtml;
+            document.getElementById('formPreviewSection').style.display = 'block';
+            showConfigStatus(`Form preview generated with ${selectedFields.length} selected fields!`, 'success');
+        }
+        
+        function parseXMLToFields(xmlString) {
+            const fields = [];
+            
+            // Simple XML parsing - extract tags and their content
+            const tagRegex = /<(\w+)>([^<]*)<\/\1>/g;
+            let match;
+            
+            while ((match = tagRegex.exec(xmlString)) !== null) {
+                const [, tagName, sampleValue] = match;
+                
+                // Skip root elements and common wrapper tags
+                if (['TemplateFieldData', 'params', 'root'].includes(tagName)) {
+                    continue;
+                }
+                
+                // Convert tag names to human-readable labels
+                const label = tagName
+                    .replace(/_/g, ' ')
+                    .replace(/([A-Z])/g, ' $1')
+                    .trim()
+                    .replace(/\b\w/g, l => l.toUpperCase());
+                
+                // Determine field type based on sample value
+                let fieldType = 'text';
+                let options = null;
+                
+                if (sampleValue.toLowerCase() === 'yes' || sampleValue.toLowerCase() === 'no') {
+                    fieldType = 'select';
+                    options = ['Yes', 'No'];
+                } else if (sampleValue.includes('@')) {
+                    fieldType = 'email';
+                } else if (/^\d+$/.test(sampleValue)) {
+                    fieldType = 'number';
+                } else if (sampleValue.length > 50) {
+                    fieldType = 'textarea';
+                }
+                
+                fields.push({
+                    name: tagName,
+                    label: label,
+                    type: fieldType,
+                    sampleValue: sampleValue,
+                    options: options,
+                    required: true, // Default to required
+                    selected: true // Default to selected
+                });
+            }
+            
+            return fields;
+        }
+        
+        function generateFormPreview(fields) {
+            let html = '<form class="dynamic-form">';
+            
+            fields.forEach(field => {
+                html += `<div class="form-group">`;
+                html += `<label for="${field.name}">${field.label}:</label>`;
+                
+                switch (field.type) {
+                    case 'textarea':
+                        html += `<textarea id="${field.name}" name="${field.name}" placeholder="${field.sampleValue}">${field.sampleValue}</textarea>`;
+                        break;
+                    case 'select':
+                        html += `<select id="${field.name}" name="${field.name}">`;
+                        html += `<option value="">Select...</option>`;
+                        field.options.forEach(option => {
+                            const isSelected = option === field.sampleValue ? 'selected' : '';
+                            html += `<option value="${option}" ${isSelected}>${option}</option>`;
+                        });
+                        html += `</select>`;
+                        break;
+                    case 'email':
+                        html += `<input type="email" id="${field.name}" name="${field.name}" placeholder="${field.sampleValue}" value="${field.sampleValue}">`;
+                        break;
+                    case 'number':
+                        html += `<input type="number" id="${field.name}" name="${field.name}" placeholder="${field.sampleValue}" value="${field.sampleValue}">`;
+                        break;
+                    default:
+                        html += `<input type="text" id="${field.name}" name="${field.name}" placeholder="${field.sampleValue}" value="${field.sampleValue}">`;
+                }
+                
+                html += `</div>`;
+            });
+            
+            html += '<button type="button" class="btn-primary">Submit (Preview Only)</button>';
+            html += '</form>';
+            
+            return html;
+        }
+        
+        function getWorkflowConfiguration() {
+            try {
+                return JSON.parse(localStorage.getItem('workflow_configuration') || '{}');
+            } catch {
+                return {};
+            }
+        }
+        
+
+        
+        function toggleFieldSelection(index, isSelected) {
+            if (window.currentFields && window.currentFields[index]) {
+                window.currentFields[index].selected = isSelected;
+                
+                // Update visual state
+                const fieldItem = document.getElementById(`field-${index}`).closest('.field-selection-item');
+                if (isSelected) {
+                    fieldItem.classList.add('selected');
+                } else {
+                    fieldItem.classList.remove('selected');
+                }
+            }
+        }
+        
+        function selectAllFields() {
+            if (!window.currentFields) return;
+            
+            window.currentFields.forEach((field, index) => {
+                field.selected = true;
+                const checkbox = document.getElementById(`field-${index}`);
+                const fieldItem = checkbox.closest('.field-selection-item');
+                checkbox.checked = true;
+                fieldItem.classList.add('selected');
+            });
+        }
+        
+        function deselectAllFields() {
+            if (!window.currentFields) return;
+            
+            window.currentFields.forEach((field, index) => {
+                field.selected = false;
+                const checkbox = document.getElementById(`field-${index}`);
+                const fieldItem = checkbox.closest('.field-selection-item');
+                checkbox.checked = false;
+                fieldItem.classList.remove('selected');
+            });
+        }
+        
+        function showConfigStatus(message, type) {
+            const status = document.getElementById('configStatus');
+            status.textContent = message;
+            status.className = `status-display ${type} show`;
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.classList.remove('show');
+                }, 5000);
+            }
+        }
+        
+        function showLogoPreview(url) {
+            const logoPreview = document.getElementById('logoPreview');
+            const logoPreviewImage = document.getElementById('logoPreviewImage');
+            
+            if (url) {
+                logoPreviewImage.src = url;
+                logoPreviewImage.onerror = function() {
+                    logoPreview.style.display = 'none';
+                    showConfigStatus('Invalid logo URL - image could not be loaded', 'error');
+                };
+                logoPreviewImage.onload = function() {
+                    logoPreview.style.display = 'block';
+                };
+            } else {
+                logoPreview.style.display = 'none';
+            }
+        }
+        
+        function updateColorPreview(color) {
+            const previewBtn = document.querySelector('.preview-btn');
+            const previewText = document.querySelector('.preview-text');
+            const previewBorder = document.querySelector('.preview-border');
+            
+            if (previewBtn) previewBtn.style.backgroundColor = color;
+            if (previewText) previewText.style.color = color;
+            if (previewBorder) previewBorder.style.borderColor = color;
+        }
+        
+        function isValidHexColor(hex) {
+            return /^#[0-9A-Fa-f]{6}$/.test(hex);
+        }
+        
+        // Load current configuration on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentConfiguration();
+            
+            // Add event listener for logo URL input
+            document.getElementById('logoUrl').addEventListener('input', function() {
+                const url = this.value.trim();
+                if (url) {
+                    showLogoPreview(url);
+                } else {
+                    document.getElementById('logoPreview').style.display = 'none';
+                }
+            });
+            
+            // Add event listeners for color inputs
+            document.getElementById('brandColorPicker').addEventListener('input', function() {
+                const color = this.value;
+                document.getElementById('brandColor').value = color;
+                updateColorPreview(color);
+            });
+            
+            document.getElementById('brandColor').addEventListener('input', function() {
+                const color = this.value.trim();
+                if (isValidHexColor(color)) {
+                    document.getElementById('brandColorPicker').value = color;
+                    updateColorPreview(color);
+                }
+            });
+            
+            // Initialize color preview
+            updateColorPreview('#FF5252');
+        });
+    </script>
+</body>
+</html>

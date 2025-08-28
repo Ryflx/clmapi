@@ -1,0 +1,17 @@
+{
+  "name": "vodafone-portal",
+  "version": "1.0.0",
+  "description": "Vodafone Portal Web Application",
+  "main": "proxy-server.js",
+  "scripts": {
+    "start": "node proxy-server.js",
+    "dev": "node proxy-server.js"
+  },
+  "author": "Vodafone",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.6.7"
+  }
+}

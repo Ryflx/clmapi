@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docusign CLM Portal</title>
+    <link rel="stylesheet" href="style.css?v=1.1">
+</head>
+<body>
+    <div class="container">
+        <!-- Logo Section -->
+        <div id="logoContainer" class="logo-section" style="display: none;">
+            <div class="logo-content">
+                <img id="configuredLogo" src="" alt="Company Logo" class="company-logo">
+            </div>
+        </div>
+        
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>Docusign CLM Portal</h1>
+                    <p>Choose your workflow to get started</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="landing-section">
+            <div class="use-cases">
+                <div class="use-case-card" onclick="navigateTo('dynamic-form.html')">
+                    <div class="card-icon">🚀</div>
+                    <h3>Kick Off Workflow</h3>
+                    <p>Submit workflows using your configured form structure and parameters.</p>
+                    <div class="card-features">
+                        <span>• Dynamic Forms</span>
+                        <span>• XML Generation</span>
+                        <span>• Live Preview</span>
+                    </div>
+                    <button class="card-btn">Launch Workflow</button>
+                </div>
+
+                <div class="use-case-card" onclick="navigateTo('config.html')">
+                    <div class="card-icon">🔧</div>
+                    <h3>Configuration</h3>
+                    <p>Configure your custom workflow and form structure for dynamic form generation.</p>
+                    <div class="card-features">
+                        <span>• Workflow Setup</span>
+                        <span>• Field Configuration</span>
+                        <span>• XML Structure</span>
+                    </div>
+                    <button class="card-btn">Configure Workflow</button>
+                </div>
+
+                <div class="use-case-card" onclick="navigateTo('tasks.html')">
+                    <div class="card-icon">📋</div>
+                    <h3>Tasks</h3>
+                    <p>View and manage workflow tasks that require manual review and approval.</p>
+                    <div class="card-features">
+                        <span>• Task Queue</span>
+                        <span>• Approval Workflow</span>
+                        <span>• Status Tracking</span>
+                    </div>
+                    <button class="card-btn">View Tasks</button>
+                </div>
+
+                <div class="use-case-card admin-card" onclick="navigateTo('admin.html')">
+                    <div class="card-icon">⚙️</div>
+                    <h3>Admin Setup</h3>
+                    <p>Configure API tokens and system settings.</p>
+                    <div class="card-features">
+                        <span>• Token Management</span>
+                        <span>• API Configuration</span>
+                        <span>• System Settings</span>
+                    </div>
+                    <button class="card-btn admin-btn">Admin Settings</button>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <h3>System Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">API Token:</span>
+                        <span id="tokenStatus" class="status-value">Not Configured</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Workflow Configuration:</span>
+                        <span id="workflowConfigStatus" class="status-value">Not Configured</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Navigation function
+        function navigateTo(page) {
+            window.location.href = page;
+        }
+
+        // Check system status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkSystemStatus();
+            loadConfiguredLogo();
+        });
+
+        function checkSystemStatus() {
+            // Check API token
+            const token = localStorage.getItem('docusign_clm_token');
+            const tokenStatusEl = document.getElementById('tokenStatus');
+            if (token) {
+                tokenStatusEl.textContent = 'Configured ✓';
+                tokenStatusEl.className = 'status-value status-success';
+            } else {
+                tokenStatusEl.textContent = 'Not Configured';
+                tokenStatusEl.className = 'status-value status-error';
+            }
+
+            // Check workflow configuration
+            const config = getWorkflowConfiguration();
+            const workflowStatusEl = document.getElementById('workflowConfigStatus');
+            if (config && config.workflowName && config.fields) {
+                workflowStatusEl.textContent = config.workflowName + ' ✓';
+                workflowStatusEl.className = 'status-value status-success';
+            } else {
+                workflowStatusEl.textContent = 'Not Configured';
+                workflowStatusEl.className = 'status-value status-error';
+            }
+        }
+        
+        function loadConfiguredLogo() {
+            const config = getWorkflowConfiguration();
+            const logoContainer = document.getElementById('logoContainer');
+            const configuredLogo = document.getElementById('configuredLogo');
+            
+            if (config && config.logoUrl) {
+                configuredLogo.src = config.logoUrl;
+                configuredLogo.onerror = function() {
+                    logoContainer.style.display = 'none';
+                };
+                configuredLogo.onload = function() {
+                    logoContainer.style.display = 'block';
+                };
+            } else {
+                logoContainer.style.display = 'none';
+            }
+        }
+        
+        function getWorkflowConfiguration() {
+            try {
+                return JSON.parse(localStorage.getItem('workflow_configuration') || '{}');
+            } catch {
+                return {};
+            }
+        }
+    </script>
+</body>
+</html> 

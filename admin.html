@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLM Portal - Admin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <nav class="portal-nav">
+            <div class="nav-brand">
+                <a href="index.html">← Portal Home</a>
+            </div>
+            <div class="nav-title">
+                <h2>Admin Panel</h2>
+            </div>
+            <div class="nav-actions">
+                <a href="config.html" class="nav-link">Configuration</a>
+                <a href="dynamic-form.html" class="nav-link">Workflow Form</a>
+            </div>
+        </nav>
+
+        <header>
+            <h1>System Administration</h1>
+            <p>Configure API tokens and workflow settings</p>
+        </header>
+
+        <!-- API Token Management -->
+        <div class="form-section">
+            <h2>API Token Configuration</h2>
+            <div class="token-section">
+                <div class="token-input">
+                    <input type="text" id="apiToken" placeholder="Enter Docusign CLM API Token">
+                    <button onclick="saveToken()">Save Token</button>
+                    <button onclick="clearToken()">Clear Token</button>
+                </div>
+                <div id="tokenStatus" class="status"></div>
+                <div class="token-info">
+                    <small>
+                        <strong>API Endpoint:</strong> https://apiuatna11.springcm.com/v2/75315137-680d-4dd5-b8bf-844d81c18164/workflows<br>
+                        <strong>Note:</strong> Token is stored securely in your browser's local storage.<br><br>
+                        <strong>Token Requirements:</strong><br>
+                        • Token must be valid and not expired<br>
+                        • Token must have workflow permissions<br>
+                        • Ensure there are no extra spaces or characters<br>
+                        • JWT tokens typically start with "eyJ"<br>
+                        • Should be 50+ characters long
+                    </small>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- System Status -->
+        <div class="form-section">
+            <h2>System Status</h2>
+            <div class="status-grid">
+                <div class="status-card">
+                    <h3>API Connection</h3>
+                    <div id="apiStatus" class="status-value">Not Tested</div>
+                    <button onclick="testApiConnection()" class="test-btn">Test Connection</button>
+                </div>
+                
+                <div class="status-card">
+                    <h3>Dynamic Configuration</h3>
+                    <div id="configStatus" class="status-value">Not Configured</div>
+                    <a href="config.html" class="test-btn">Open Configuration</a>
+                </div>
+                
+                <div class="status-card">
+                    <h3>Workflow Form</h3>
+                    <div id="workflowFormStatus" class="status-value">Ready</div>
+                    <a href="dynamic-form.html" class="test-btn">Open Form</a>
+                </div>
+            </div>
+        </div>
+
+
+
+
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Initialize admin panel
+        document.addEventListener('DOMContentLoaded', function() {
+            // Debug localStorage contents
+            console.log('🔍 Admin Page - LocalStorage Debug:');
+            console.log('- Token:', localStorage.getItem('docusign_clm_token') ? 'Present' : 'Missing');
+            console.log('- Workflow Configs:', localStorage.getItem('vodafone_workflow_configs') ? 'Present' : 'Missing');
+            console.log('- Workflow Submissions:', localStorage.getItem('vodafone_workflow_submissions') ? 'Present' : 'Missing');
+            
+            loadCurrentConfiguration();
+            updateSystemStatus();
+        });
+
+        function loadCurrentConfiguration() {
+            // Load token status - but keep token section always visible in admin
+            checkTokenStatusAdmin();
+        }
+
+        // Override token status check for admin - always keep token section visible
+        function checkTokenStatusAdmin() {
+            const token = getStoredToken();
+            const tokenSection = document.querySelector('.token-section');
+            
+            // Always ensure token section is visible in admin
+            if (tokenSection) {
+                tokenSection.style.display = 'block';
+                tokenSection.style.opacity = '1';
+                tokenSection.style.transform = 'translateY(0)';
+            }
+            
+            // Update status text only
+            if (token) {
+                showTokenStatus('Token is configured ✓', 'success');
+                // Populate the token field so admin can see/edit it
+                const tokenInput = document.getElementById('apiToken');
+                if (tokenInput) {
+                    tokenInput.value = token;
+                }
+            } else {
+                showTokenStatus('No token configured', 'info');
+            }
+        }
+
+        // Override saveToken for admin - don't hide section after saving
+        function saveToken() {
+            const tokenInput = document.getElementById('apiToken');
+            const token = tokenInput.value.trim();
+            
+            if (!token) {
+                showTokenStatus('Please enter a token', 'error');
+                return;
+            }
+            
+            try {
+                localStorage.setItem('docusign_clm_token', token);
+                showTokenStatus('Token saved successfully!', 'success');
+                updateSystemStatus(); // Update the system status after saving
+                
+                // Keep the token section visible and populated in admin
+                const tokenSection = document.querySelector('.token-section');
+                if (tokenSection) {
+                    tokenSection.style.display = 'block';
+                    tokenSection.style.opacity = '1';
+                    tokenSection.style.transform = 'translateY(0)';
+                }
+                
+            } catch (error) {
+                showTokenStatus('Failed to save token: ' + error.message, 'error');
+            }
+        }
+
+        // Override clearToken for admin
+        function clearToken() {
+            try {
+                localStorage.removeItem('docusign_clm_token');
+                showTokenStatus('Token cleared successfully!', 'info');
+                updateSystemStatus(); // Update the system status after clearing
+                
+                // Clear the input field
+                const tokenInput = document.getElementById('apiToken');
+                if (tokenInput) {
+                    tokenInput.value = '';
+                }
+                
+                // Keep the token section visible in admin
+                const tokenSection = document.querySelector('.token-section');
+                if (tokenSection) {
+                    tokenSection.style.display = 'block';
+                    tokenSection.style.opacity = '1';
+                    tokenSection.style.transform = 'translateY(0)';
+                }
+            } catch (error) {
+                showTokenStatus('Failed to clear token: ' + error.message, 'error');
+            }
+        }
+
+        // Token status display function for admin
+        function showTokenStatus(message, type) {
+            const statusEl = document.getElementById('tokenStatus');
+            if (statusEl) {
+                statusEl.textContent = message;
+                statusEl.className = `status ${type}`;
+            }
+        }
+
+
+
+        function updateSystemStatus() {
+            const token = getStoredToken();
+            const config = getWorkflowConfiguration();
+            
+            // Update dynamic configuration status
+            const configStatusEl = document.getElementById('configStatus');
+            if (config && config.workflowName && config.fields) {
+                configStatusEl.textContent = 'Configured ✓';
+                configStatusEl.className = 'status-value status-success';
+            } else {
+                configStatusEl.textContent = 'Not Configured';
+                configStatusEl.className = 'status-value status-error';
+            }
+            
+            // Update workflow form status
+            const workflowFormStatusEl = document.getElementById('workflowFormStatus');
+            if (token && config && config.workflowName) {
+                workflowFormStatusEl.textContent = 'Ready ✓';
+                workflowFormStatusEl.className = 'status-value status-success';
+            } else {
+                workflowFormStatusEl.textContent = 'Configuration Required';
+                workflowFormStatusEl.className = 'status-value status-error';
+            }
+        }
+        
+        function getWorkflowConfiguration() {
+            try {
+                return JSON.parse(localStorage.getItem('workflow_configuration') || '{}');
+            } catch {
+                return {};
+            }
+        }
+
+
+
+        async function testApiConnection() {
+            const token = getStoredToken();
+            const apiStatusEl = document.getElementById('apiStatus');
+            
+            if (!token) {
+                apiStatusEl.textContent = 'No Token Configured';
+                apiStatusEl.className = 'status-value status-error';
+                return;
+            }
+            
+            apiStatusEl.textContent = 'Testing...';
+            apiStatusEl.className = 'status-value status-loading';
+            
+            try {
+                console.log('=== API Test Debug ===');
+                console.log('Testing with token:', token.substring(0, 10) + '...');
+                console.log('Full URL:', `${CONFIG.CLM_BASE_URL}${CONFIG.WORKFLOW_ENDPOINT}`);
+                console.log('=====================');
+
+                // Try a simple GET request first
+                const response = await fetch(`${CONFIG.CLM_BASE_URL}${CONFIG.WORKFLOW_ENDPOINT}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                console.log('Test response status:', response.status);
+                console.log('Test response headers:', Object.fromEntries(response.headers.entries()));
+                
+                const responseText = await response.text();
+                console.log('Test response body:', responseText);
+                
+                if (response.ok) {
+                    apiStatusEl.textContent = 'Connected ✓';
+                    apiStatusEl.className = 'status-value status-success';
+                } else if (response.status === 405) {
+                    // Method Not Allowed is expected for GET on workflows endpoint
+                    apiStatusEl.textContent = 'Connected ✓';
+                    apiStatusEl.className = 'status-value status-success';
+                } else if (response.status === 401) {
+                    apiStatusEl.textContent = 'Authentication Failed - Check Token';
+                    apiStatusEl.className = 'status-value status-error';
+                } else {
+                    let errorMsg = `HTTP ${response.status}`;
+                    if (responseText) {
+                        try {
+                            const errorData = JSON.parse(responseText);
+                            errorMsg = errorData.message || errorData.error || errorMsg;
+                        } catch (e) {
+                            errorMsg = responseText.length > 100 ? responseText.substring(0, 100) + '...' : responseText;
+                        }
+                    }
+                    throw new Error(errorMsg);
+                }
+            } catch (error) {
+                console.error('API test error:', error);
+                apiStatusEl.textContent = `Connection Failed: ${error.message}`;
+                apiStatusEl.className = 'status-value status-error';
+                
+
+            }
+        }
+
+
+
+        // Helper function to get workflow configs
+        function getWorkflowConfigs() {
+            try {
+                return JSON.parse(localStorage.getItem('workflow_configs') || '{}');
+            } catch {
+                return {};
+            }
+        }
+
+
+    </script>
+</body>
+</html> 

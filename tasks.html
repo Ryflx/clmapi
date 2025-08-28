@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks - Docusign CLM Portal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <nav class="portal-nav">
+            <div class="nav-brand">
+                <a href="index.html">← Docusign CLM Portal</a>
+            </div>
+            <div class="nav-title">
+                <h2>Tasks</h2>
+            </div>
+            <div class="nav-actions">
+                <button id="refreshTasks" class="nav-link">Refresh</button>
+                <a href="admin.html" class="nav-link">Admin</a>
+            </div>
+        </nav>
+
+        <header>
+            <h1>Workflow Tasks</h1>
+            <p>Manage pending tasks and document approvals</p>
+        </header>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="status-display" style="display: none;">
+            <strong>Loading tasks...</strong>
+        </div>
+
+        <!-- Configuration Warning -->
+        <div id="configWarning" class="status-display" style="display: none;">
+            <strong>Configuration Required:</strong> Please configure your API token in the <a href="admin.html">Admin panel</a> before viewing tasks.
+        </div>
+
+
+
+        <!-- Tasks Section -->
+        <div id="tasksSection" class="form-section">
+            <div class="form-section-header">
+                <h3>All Work Items</h3>
+                <div class="task-summary">
+                    <span id="taskCount">0 work items</span>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="filter-section" id="filterSection" style="display: none;">
+                <div class="filter-group">
+                    <label for="groupFilter">Workflow Queue</label>
+                    <select id="groupFilter">
+                        <option value="">All queues</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="assigneeFilter">Assignee</label>
+                    <select id="assigneeFilter">
+                        <option value="">All assignees</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button class="task-btn secondary" id="clearFilters">Clear filters</button>
+                </div>
+            </div>
+
+
+            
+            <div id="tasksContainer">
+                <!-- Tasks will be loaded here -->
+            </div>
+            
+            <div id="noTasks" class="empty-state" style="display: none;">
+                <div class="empty-icon">📋</div>
+                <h3>No Work Items Found</h3>
+                <p>Work items from all your workflow queues will appear here when available.</p>
+                <p><em>Note: You will only see work items that are assigned to you.</em></p>
+            </div>
+        </div>
+
+        <!-- Error Display -->
+        <div id="errorDisplay" class="status-display error" style="display: none;"></div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Page-specific configuration
+        const PAGE_CONFIG = {
+            refreshInterval: 30000, // Refresh every 30 seconds
+            autoRefresh: true
+        };
+
+        let refreshTimer = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            if (checkConfiguration()) {
+                loadTasks();
+                setupAutoRefresh();
+            }
+            setupEventListeners();
+        });
+
+        function checkConfiguration() {
+            const token = getStoredToken();
+            
+            if (!token) {
+                document.getElementById('configWarning').style.display = 'block';
+                document.getElementById('configWarning').className = 'status-display error show';
+                return false;
+            }
+            return true;
+        }
+
+        function setupEventListeners() {
+            document.getElementById('refreshTasks').addEventListener('click', function() {
+                loadTasks();
+            });
+        }
+
+        function setupAutoRefresh() {
+            if (PAGE_CONFIG.autoRefresh) {
+                refreshTimer = setInterval(() => {
+                    loadTasks(true); // Silent refresh
+                }, PAGE_CONFIG.refreshInterval);
+            }
+        }
+
+        async function loadTasks(silent = false) {
+            const token = getStoredToken();
+            console.log('Token available:', !!token);
+            if (!token) {
+                showError('API token not configured');
+                return;
+            }
+
+            if (!silent) {
+                showLoading(true);
+            }
+
+            try {
+                console.log('Starting to fetch work items...');
+                const workItems = await fetchWorkItems(token);
+                console.log('Received work items:', workItems);
+                displayTasks(workItems);
+                hideError();
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                showError(`Failed to load tasks: ${error.message}`);
+            } finally {
+                if (!silent) {
+                    showLoading(false);
+                }
+            }
+        }
+
+        async function fetchWorkItems(token) {
+            try {
+                // First, get the user's workflow queues
+                const workflowQueues = await fetchUserWorkflowQueues(token);
+                
+                if (workflowQueues.length === 0) {
+                    console.log('No workflow queues found for current user');
+                    return [];
+                }
+                
+                console.log('Found workflow queues:', workflowQueues.map(q => ({ name: q.Name, id: q.Href.split('/').pop() })));
+                
+                // For each queue, fetch work items
+                const allWorkItems = [];
+                for (const queue of workflowQueues) {
+                    const queueId = queue.Href.split('/').pop(); // Extract queue ID from href
+                    console.log(`Fetching work items for queue: ${queue.Name} (${queueId})`);
+                    const workItems = await fetchQueueWorkItems(token, queueId);
+                    // Attach queue metadata to each work item for filtering
+                    const withQueueMeta = workItems.map(item => ({
+                        ...item,
+                        QueueId: queueId,
+                        QueueName: queue.Name
+                    }));
+                    allWorkItems.push(...withQueueMeta);
+                }
+                
+                console.log(`Found ${allWorkItems.length} total work items from all queues`);
+                
+                return allWorkItems;
+                
+            } catch (error) {
+                console.error('Error fetching work items:', error);
+                return [];
+            }
+        }
+
+        async function fetchUserWorkflowQueues(token) {
+            // Check if we're running through the proxy server
+            const isUsingProxy = window.location.hostname === 'localhost' && window.location.port === '3000';
+            
+            let requestOptions, apiUrl;
+            
+            if (isUsingProxy) {
+                apiUrl = '/api/docusign/user-workflow-queues';
+                requestOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                };
+            } else {
+                apiUrl = `${CONFIG.CLM_BASE_URL}/members/current/workflowqueues`;
+                requestOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                };
+            }
+
+            console.log('Fetching user workflow queues from:', apiUrl);
+            console.log('Using proxy:', isUsingProxy);
+            console.log('Request options:', requestOptions);
+            
+            const response = await fetch(apiUrl, requestOptions);
+            
+            console.log('Response status:', response.status);
+            console.log('Response headers:', [...response.headers.entries()]);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', errorText);
+                if (response.status === 401) {
+                    throw new Error('Authentication failed. Please check your API token.');
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}. Response: ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('Raw API response:', data);
+            const queues = data.Items || [];
+            
+            console.log(`User has access to ${queues.length} workflow queues:`, queues.map(q => ({ name: q.Name, href: q.Href })));
+            
+            return queues;
+        }
+
+        async function fetchMemberDetails(token, memberHref) {
+            // Check if member ID is all zeros (unassigned)
+            if (memberHref.includes('00000000-0000-0000-0000-000000000000')) {
+                return { name: 'Unassigned' };
+            }
+
+            // Check if we're running through the proxy server
+            const isUsingProxy = window.location.hostname === 'localhost' && window.location.port === '3000';
+            
+            let requestOptions, apiUrl;
+            
+            if (isUsingProxy) {
+                // Extract member ID from the href for proxy route
+                const memberId = memberHref.split('/').pop();
+                apiUrl = `/api/docusign/member/${memberId}`;
+                requestOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                };
+            } else {
+                apiUrl = memberHref;
+                requestOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                };
+            }
+
+            console.log(`Fetching member details from: ${apiUrl}`);
+            
+            try {
+                const response = await fetch(apiUrl, requestOptions);
+                
+                if (!response.ok) {
+                    console.warn(`Failed to fetch member details: ${response.status}`);
+                    return { name: 'Unknown User' };
+                }
+
+                const memberData = await response.json();
+                console.log('Member data:', memberData);
+                
+                // Return the member name (using actual field names from API response)
+                return { 
+                    name: memberData.UserName || `${memberData.FirstName} ${memberData.LastName}`.trim() || memberData.Email || 'Unknown User',
+                    email: memberData.Email || ''
+                };
+                
+            } catch (error) {
+                console.error('Error fetching member details:', error);
+                return { name: 'Unknown User' };
+            }
+        }
+
+        async function fetchQueueWorkItems(token, queueId) {
+            // Check if we're running through the proxy server
+            const isUsingProxy = window.location.hostname === 'localhost' && window.location.port === '3000';
+            
+            let requestOptions, apiUrl;
+            
+            if (isUsingProxy) {
+                apiUrl = `/api/docusign/queue-workitems/${queueId}`;
+                requestOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                };
+            } else {
+                apiUrl = `${CONFIG.CLM_BASE_URL}/workflowqueues/${queueId}/workitems`;
+                requestOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                };
+            }
+
+            console.log(`Fetching work items from queue ${queueId}:`, apiUrl);
+            console.log('Request options:', requestOptions);
+            
+            const response = await fetch(apiUrl, requestOptions);
+            
+            console.log(`Response status for queue ${queueId}:`, response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`API Error Response for queue ${queueId}:`, errorText);
+                if (response.status === 401) {
+                    throw new Error('Authentication failed. Please check your API token.');
+                }
+                console.warn(`Failed to fetch work items from queue ${queueId}: ${response.status}. Response: ${errorText}`);
+                return [];
+            }
+
+            const data = await response.json();
+            console.log(`Raw API response for queue ${queueId}:`, data);
+            const workItems = data.Items || [];
+            
+            console.log(`Found ${workItems.length} work items in queue ${queueId}:`, workItems);
+            
+            return workItems;
+        }
+
+
+        let allWorkItems = []; // Store all work items for filtering
+        let filteredWorkItems = []; // Current filtered list
+        const memberIdToName = {}; // Cache member names by ID
+
+        function displayTasks(workItems) {
+            console.log('All work items received:', workItems);
+            if (!Array.isArray(workItems)) {
+                allWorkItems = [];
+            } else {
+                allWorkItems = workItems;
+            }
+            // Initialize filters UI and render
+            buildFilters();
+            applyFilters();
+            document.getElementById('filterSection').style.display = 'block';
+        }
+
+        function buildFilters() {
+            const groupFilter = document.getElementById('groupFilter');
+            const assigneeFilter = document.getElementById('assigneeFilter');
+
+            // Reset options
+            groupFilter.innerHTML = '<option value="">All queues</option>';
+            assigneeFilter.innerHTML = '<option value="">All assignees</option>';
+
+            // Unique queues
+            const queueMap = new Map();
+            allWorkItems.forEach(item => {
+                if (item.QueueId && item.QueueName && !queueMap.has(item.QueueId)) {
+                    queueMap.set(item.QueueId, item.QueueName);
+                }
+            });
+            [...queueMap.entries()].sort((a, b) => a[1].localeCompare(b[1])).forEach(([id, name]) => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = name;
+                groupFilter.appendChild(opt);
+            });
+
+            // Unique assignees by memberId (name may be loaded later)
+            const memberIds = new Set();
+            allWorkItems.forEach(item => {
+                const href = item.Assignee?.Href || '';
+                const memberId = href ? href.split('/').pop() : '00000000-0000-0000-0000-000000000000';
+                memberIds.add(memberId);
+            });
+
+            [...memberIds].forEach(memberId => {
+                const name = memberIdToName[memberId] || (memberId.includes('0000') ? 'Unassigned' : 'Loading...');
+                const opt = document.createElement('option');
+                opt.value = memberId;
+                opt.textContent = name;
+                assigneeFilter.appendChild(opt);
+            });
+
+            // Event listeners (idempotent)
+            groupFilter.onchange = applyFilters;
+            assigneeFilter.onchange = applyFilters;
+            document.getElementById('clearFilters').onclick = () => {
+                groupFilter.value = '';
+                assigneeFilter.value = '';
+                applyFilters();
+            };
+        }
+
+        function applyFilters() {
+            const selectedQueueId = document.getElementById('groupFilter').value;
+            const selectedMemberId = document.getElementById('assigneeFilter').value;
+
+            filteredWorkItems = allWorkItems.filter(item => {
+                const matchesQueue = selectedQueueId ? item.QueueId === selectedQueueId : true;
+                const itemMemberId = (item.Assignee?.Href ? item.Assignee.Href.split('/').pop() : '00000000-0000-0000-0000-000000000000');
+                const matchesAssignee = selectedMemberId ? itemMemberId === selectedMemberId : true;
+                return matchesQueue && matchesAssignee;
+            });
+
+            renderTasks(filteredWorkItems);
+        }
+
+        function updateAssigneeFilterOption(memberId, name) {
+            memberIdToName[memberId] = name;
+            const assigneeFilter = document.getElementById('assigneeFilter');
+            const opt = [...assigneeFilter.options].find(o => o.value === memberId);
+            if (opt) opt.textContent = name;
+        }
+
+        async function renderTasks(items) {
+            const tasksContainer = document.getElementById('tasksContainer');
+            const noTasksDiv = document.getElementById('noTasks');
+            const taskCount = document.getElementById('taskCount');
+            
+            // Update work item count
+            taskCount.textContent = `${items.length} work item${items.length !== 1 ? 's' : ''}`;
+            
+            if (items.length === 0) {
+                tasksContainer.innerHTML = '';
+                noTasksDiv.style.display = 'block';
+                return;
+            }
+
+            noTasksDiv.style.display = 'none';
+            
+            // Generate task cards for all work items with loading state for assignees
+            tasksContainer.innerHTML = items.map(item => createTaskCard(item, memberIdToName[item.Assignee?.Href ? item.Assignee.Href.split('/').pop() : '00000000-0000-0000-0000-000000000000'] || 'Loading...')).join('');
+            
+            // Fetch assignee details for each work item and update the cards
+            const token = getStoredToken();
+            console.log('Token for assignee fetching:', !!token);
+            console.log('Number of work items to process:', items.length);
+            
+            if (token) {
+                for (const workItem of items) {
+                    console.log('Processing work item:', workItem.Name, 'Assignee:', workItem.Assignee);
+                    
+                    if (workItem.Assignee && workItem.Assignee.Href) {
+                        const workItemId = workItem.Href ? workItem.Href.split('/').pop() : 'Unknown';
+                        console.log(`Fetching assignee for work item ${workItemId}, assignee href: ${workItem.Assignee.Href}`);
+                        
+                        try {
+                            const memberId = workItem.Assignee.Href.split('/').pop();
+                            if (memberIdToName[memberId]) {
+                                const taskCard = document.getElementById(`task-${workItemId}`);
+                                if (taskCard) {
+                                    const assigneeElement = taskCard.querySelector('.assignee-name');
+                                    if (assigneeElement) assigneeElement.textContent = memberIdToName[memberId];
+                                }
+                                continue;
+                            }
+                            // Fetch assignee details
+                            const assigneeData = await fetchMemberDetails(token, workItem.Assignee.Href);
+                            console.log(`Assignee data for ${workItemId}:`, assigneeData);
+                            
+                            // Update the assignee name in the task card
+                            const taskCard = document.getElementById(`task-${workItemId}`);
+                            if (taskCard) {
+                                const assigneeElement = taskCard.querySelector('.assignee-name');
+                                if (assigneeElement) {
+                                    console.log(`Updating assignee name to: ${assigneeData.name}`);
+                                    assigneeElement.textContent = assigneeData.name;
+                                    updateAssigneeFilterOption(memberId, assigneeData.name);
+                                } else {
+                                    console.error('Could not find assignee element in task card');
+                                }
+                            } else {
+                                console.error(`Could not find task card with ID: task-${workItemId}`);
+                            }
+                        } catch (error) {
+                            console.error(`Error fetching assignee for work item ${workItemId}:`, error);
+                        }
+                    } else {
+                        console.log('Work item has no assignee or assignee href:', workItem.Name);
+                    }
+                }
+            } else {
+                console.error('No token available for fetching assignee details');
+            }
+        }
+
+        function createTaskCard(workItem, assigneeName = 'Loading...') {
+            const createdDate = formatDate(workItem.CreatedDate);
+            const assignDate = formatDate(workItem.AssignDate);
+            const workflowName = workItem.Workflow?.Name || 'Unknown';
+            const queueName = workItem.QueueName || 'Unknown';
+            const workItemId = workItem.Href ? workItem.Href.split('/').pop() : 'Unknown';
+            
+            console.log('Creating task card for work item:', workItem);
+            
+            return `
+                <div class="task-card" id="task-${escapeHtml(workItemId)}">
+                    <div class="task-header">
+                        <div class="task-title">
+                            <h4>${escapeHtml(workItem.Name || 'Untitled Task')}</h4>
+                            <span class="task-type">${escapeHtml(workItem.Type || 'Task')}</span>
+                        </div>
+                        <div class="task-badges">
+                            <span class="badge priority-normal">Normal</span>
+                            <span class="badge status-pending">Pending</span>
+                        </div>
+                    </div>
+                    
+                    <div class="task-details">
+                        <div class="task-info">
+                            <span class="info-label">Assigned to:</span>
+                            <span class="info-value assignee-name">${escapeHtml(assigneeName)}</span>
+                        </div>
+                        <div class="task-info">
+                            <span class="info-label">Workflow:</span>
+                            <span class="info-value">${escapeHtml(workflowName)}</span>
+                        </div>
+                        <div class="task-info">
+                            <span class="info-label">Queue:</span>
+                            <span class="info-value">${escapeHtml(queueName)}</span>
+                        </div>
+                        <div class="task-info">
+                            <span class="info-label">Work Item ID:</span>
+                            <span class="info-value">${escapeHtml(workItemId)}</span>
+                        </div>
+                        <div class="task-info">
+                            <span class="info-label">Assigned:</span>
+                            <span class="info-value">${assignDate}</span>
+                        </div>
+                        <div class="task-info">
+                            <span class="info-label">Created:</span>
+                            <span class="info-value">${createdDate}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="task-actions">
+                        <button class="task-btn primary" onclick="openWorkItem('${escapeHtml(workItem.WorkItemUrl || '')}')">
+                            Open Task
+                        </button>
+                        <button class="task-btn secondary" onclick="viewWorkItemDetails('${escapeHtml(workItem.Href || '')}')">
+                            View Details
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openWorkItem(workItemUrl) {
+            // Open the work item in Docusign CLM using the WorkItemUrl
+            if (workItemUrl) {
+                window.open(workItemUrl, '_blank');
+            } else {
+                alert('Work item URL not available');
+            }
+        }
+
+        function viewWorkItemDetails(workItemHref) {
+            // Show work item details - in a real implementation, this could fetch details from the API
+            if (workItemHref) {
+                alert(`Work item details available at: ${workItemHref}`);
+            } else {
+                alert('Work item details not available');
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingState').style.display = show ? 'block' : 'none';
+            document.getElementById('loadingState').className = show ? 'status-display loading show' : 'status-display';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorDisplay');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            errorDiv.className = 'status-display error show';
+        }
+
+        function hideError() {
+            document.getElementById('errorDisplay').style.display = 'none';
+        }
+
+
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (refreshTimer) {
+                clearInterval(refreshTimer);
+            }
+        });
+    </script>
+</body>
+</html> 
