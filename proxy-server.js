@@ -81,6 +81,151 @@ app.head('/', (req, res) => {
     res.status(200).end();
 });
 
+// In-memory storage for workflow statuses (in production, use a database)
+let workflowStatuses = [];
+
+// Workflow Status API Endpoints
+
+// Get all workflow statuses
+app.get('/api/workflow-status', (req, res) => {
+    console.log('GET /api/workflow-status - Returning', workflowStatuses.length, 'statuses');
+    res.json(workflowStatuses);
+});
+
+// Update workflow status (called by CLM workflows)
+app.post('/api/workflow-status', (req, res) => {
+    try {
+        const { workflowId, workflowName, status, message, timestamp } = req.body;
+        
+        console.log('POST /api/workflow-status - Received status update:', {
+            workflowId,
+            workflowName,
+            status,
+            message,
+            timestamp
+        });
+        
+        if (!workflowId || !status) {
+            return res.status(400).json({
+                error: 'Missing required fields',
+                message: 'workflowId and status are required'
+            });
+        }
+        
+        // Validate status
+        const validStatuses = ['pending', 'running', 'completed', 'failed'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                error: 'Invalid status',
+                message: `Status must be one of: ${validStatuses.join(', ')}`
+            });
+        }
+        
+        const statusUpdate = {
+            workflowId,
+            workflowName: workflowName || 'Unknown Workflow',
+            status,
+            message: message || '',
+            timestamp: timestamp || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        // Find existing status or create new one
+        const existingIndex = workflowStatuses.findIndex(s => s.workflowId === workflowId);
+        if (existingIndex >= 0) {
+            // Update existing status
+            workflowStatuses[existingIndex] = { 
+                ...workflowStatuses[existingIndex], 
+                ...statusUpdate 
+            };
+            console.log('Updated existing workflow status for ID:', workflowId);
+        } else {
+            // Add new status
+            workflowStatuses.push(statusUpdate);
+            console.log('Added new workflow status for ID:', workflowId);
+        }
+        
+        // Keep only the last 1000 statuses to prevent memory issues
+        if (workflowStatuses.length > 1000) {
+            workflowStatuses = workflowStatuses.slice(-1000);
+        }
+        
+        res.status(201).json({
+            success: true,
+            message: 'Workflow status updated successfully',
+            status: statusUpdate
+        });
+        
+    } catch (error) {
+        console.error('Error updating workflow status:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
+});
+
+// Delete specific workflow status
+app.delete('/api/workflow-status/:workflowId', (req, res) => {
+    try {
+        const { workflowId } = req.params;
+        
+        console.log('DELETE /api/workflow-status/' + workflowId);
+        
+        const initialCount = workflowStatuses.length;
+        workflowStatuses = workflowStatuses.filter(s => s.workflowId !== workflowId);
+        
+        if (workflowStatuses.length < initialCount) {
+            res.json({ success: true, message: 'Workflow status deleted successfully' });
+        } else {
+            res.status(404).json({ error: 'Workflow status not found' });
+        }
+        
+    } catch (error) {
+        console.error('Error deleting workflow status:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
+});
+
+// Cleanup old statuses (completed/failed older than 24 hours)
+app.post('/api/workflow-status/cleanup', (req, res) => {
+    try {
+        console.log('POST /api/workflow-status/cleanup');
+        
+        const oneDayAgo = new Date();
+        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+        
+        const initialCount = workflowStatuses.length;
+        workflowStatuses = workflowStatuses.filter(s => {
+            const statusDate = new Date(s.timestamp);
+            const isOld = statusDate < oneDayAgo;
+            const isCompletedOrFailed = s.status === 'completed' || s.status === 'failed';
+            
+            // Keep if it's not old, or if it's not completed/failed
+            return !isOld || !isCompletedOrFailed;
+        });
+        
+        const removedCount = initialCount - workflowStatuses.length;
+        
+        res.json({
+            success: true,
+            message: `Cleaned up ${removedCount} old workflow statuses`,
+            removedCount,
+            remainingCount: workflowStatuses.length
+        });
+        
+    } catch (error) {
+        console.error('Error cleaning up workflow statuses:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
+});
+
 // Explicit preflight handler for complex requests
 app.options('*', (req, res) => {
     console.log('Preflight request received for:', req.url);
