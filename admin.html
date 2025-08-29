@@ -3,306 +3,590 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CLM Portal - Admin</title>
+    <title>Admin Panel - CLM Portal</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .login-section {
+            background: linear-gradient(135deg, #FF5252 0%, #E53935 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .login-section h2 {
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+        }
+        
+        .login-section p {
+            margin-bottom: 1.5rem;
+            opacity: 0.9;
+        }
+        
+        .login-btn {
+            background: #FF5252;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        
+        .login-btn:hover {
+            background: #E53935;
+        }
+        
+        .account-selection {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            display: none;
+        }
+        
+        .account-selection h3 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        
+        .account-dropdown {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .select-account-btn {
+            background: #FF5252;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .select-account-btn:hover {
+            background: #E53935;
+        }
+        
+        .status-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .clear-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .clear-btn:hover {
+            background: #c82333;
+        }
+        
+        .info-section {
+            background: #e3f2fd;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+        
+        .info-section h4 {
+            color: #1976d2;
+            margin-bottom: 1rem;
+        }
+        
+        .info-section p {
+            color: #424242;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-section code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+
+    </style>
 </head>
 <body>
     <div class="container">
-        <nav class="portal-nav">
-            <div class="nav-brand">
-                <a href="index.html">← Portal Home</a>
+        <!-- Back Navigation -->
+        <div class="back-nav">
+            <a href="index.html" class="back-btn">← Back to Portal</a>
             </div>
-            <div class="nav-title">
-                <h2>Admin Panel</h2>
-            </div>
-            <div class="nav-actions">
-                <a href="config.html" class="nav-link">Configuration</a>
-                <a href="dynamic-form.html" class="nav-link">Workflow Form</a>
-            </div>
-        </nav>
 
         <header>
-            <h1>System Administration</h1>
-            <p>Configure API tokens and workflow settings</p>
+            <h1>Admin Panel</h1>
+            <p>Connect your Docusign account to get started</p>
         </header>
 
-        <!-- API Token Management -->
-        <div class="form-section">
-            <h2>API Token Configuration</h2>
-            <div class="token-section">
-                <div class="token-input">
-                    <input type="text" id="apiToken" placeholder="Enter Docusign CLM API Token">
-                    <button onclick="saveToken()">Save Token</button>
-                    <button onclick="clearToken()">Clear Token</button>
+                <!-- Login Section -->
+        <div class="login-section">
+            <h2>Welcome to CLM Portal</h2>
+            <p>Connect your Docusign account with CLM access</p>
+            <button id="oauthLoginBtn" class="login-btn" onclick="startOAuthLogin()">
+                Login with Docusign
+            </button>
+        </div>
+
+        <!-- Account Selection Section -->
+        <div id="accountSelection" class="account-selection">
+            <h3>Select Your Account</h3>
+            <p>Choose which Docusign account you'd like to use:</p>
+            <select id="accountDropdown" class="account-dropdown">
+                <option value="">Loading accounts...</option>
+            </select>
+            <button id="selectAccountBtn" class="select-account-btn" onclick="selectAccount()">
+                Use This Account
+            </button>
                 </div>
-                <div id="tokenStatus" class="status"></div>
-                <div class="token-info">
-                    <small>
-                        <strong>API Endpoint:</strong> https://apiuatna11.springcm.com/v2/75315137-680d-4dd5-b8bf-844d81c18164/workflows<br>
-                        <strong>Note:</strong> Token is stored securely in your browser's local storage.<br><br>
-                        <strong>Token Requirements:</strong><br>
-                        • Token must be valid and not expired<br>
-                        • Token must have workflow permissions<br>
-                        • Ensure there are no extra spaces or characters<br>
-                        • JWT tokens typically start with "eyJ"<br>
-                        • Should be 50+ characters long
-                    </small>
+                
+        <!-- System Status Section -->
+        <div class="status-section">
+            <h3>System Status</h3>
+            <div class="status-item">
+                <span>Authentication Status:</span>
+                <span id="authStatus" class="status-badge status-warning">Not Authenticated</span>
+            </div>
+            <div class="status-item">
+                <span>Account ID:</span>
+                <span id="accountIdStatus" class="status-badge status-warning">Not Set</span>
                 </div>
+            <div class="status-item">
+                <span>Access Token:</span>
+                <span id="tokenStatus" class="status-badge status-warning">Not Set</span>
+                </div>
+            <div class="status-item">
+                <span>Token Expiry:</span>
+                <span id="tokenExpiryStatus" class="status-badge status-warning">Unknown</span>
             </div>
         </div>
 
 
 
-        <!-- System Status -->
-        <div class="form-section">
-            <h2>System Status</h2>
-            <div class="status-grid">
-                <div class="status-card">
-                    <h3>API Connection</h3>
-                    <div id="apiStatus" class="status-value">Not Tested</div>
-                    <button onclick="testApiConnection()" class="test-btn">Test Connection</button>
-                </div>
-                
-                <div class="status-card">
-                    <h3>Dynamic Configuration</h3>
-                    <div id="configStatus" class="status-value">Not Configured</div>
-                    <a href="config.html" class="test-btn">Open Configuration</a>
-                </div>
-                
-                <div class="status-card">
-                    <h3>Workflow Form</h3>
-                    <div id="workflowFormStatus" class="status-value">Ready</div>
-                    <a href="dynamic-form.html" class="test-btn">Open Form</a>
-                </div>
-            </div>
+        <!-- Actions Section -->
+        <div class="status-section">
+            <h3>Actions</h3>
+            <button id="clearCredentialsBtn" class="clear-btn" onclick="clearCredentials()">
+                Clear All Credentials
+            </button>
         </div>
-
-
-
-
     </div>
 
-    <script src="script.js"></script>
     <script>
-        // Initialize admin panel
-        document.addEventListener('DOMContentLoaded', function() {
-            // Debug localStorage contents
-            console.log('🔍 Admin Page - LocalStorage Debug:');
-            console.log('- Token:', localStorage.getItem('docusign_clm_token') ? 'Present' : 'Missing');
-            console.log('- Workflow Configs:', localStorage.getItem('vodafone_workflow_configs') ? 'Present' : 'Missing');
-            console.log('- Workflow Submissions:', localStorage.getItem('vodafone_workflow_submissions') ? 'Present' : 'Missing');
-            
-            loadCurrentConfiguration();
-            updateSystemStatus();
-        });
+        // OAuth Configuration - using your registered client ID
+        const OAUTH_CONFIG = {
+            // Your registered client ID with proper callback URLs
+            clientId: '371f36a1-f451-4f75-b217-b0bb4ddd6767', // Your client ID
+            clientSecret: '63e504ba-78cd-4c7b-81ce-9ee463d8f240', // Your client secret
+            redirectUri: window.location.origin + window.location.pathname,
+            scope: 'signature extended spring_read spring_write',
+            authUrl: 'https://account-d.docusign.com/oauth/auth' // Demo environment
+        };
 
-        function loadCurrentConfiguration() {
-            // Load token status - but keep token section always visible in admin
-            checkTokenStatusAdmin();
+        // Start OAuth login flow
+        function startOAuthLogin() {
+            const state = generateRandomState();
+            sessionStorage.setItem('oauth_state', state);
+            
+            const authUrl = `${OAUTH_CONFIG.authUrl}?` +
+                `response_type=code&` +
+                `scope=${encodeURIComponent(OAUTH_CONFIG.scope)}&` +
+                `client_id=${OAUTH_CONFIG.clientId}&` +
+                `redirect_uri=${encodeURIComponent(OAUTH_CONFIG.redirectUri)}&` +
+                `state=${state}&` +
+                `prompt=login`;
+            
+            console.log('Starting OAuth flow:', authUrl);
+            window.location.href = authUrl;
         }
 
-        // Override token status check for admin - always keep token section visible
-        function checkTokenStatusAdmin() {
-            const token = getStoredToken();
-            const tokenSection = document.querySelector('.token-section');
-            
-            // Always ensure token section is visible in admin
-            if (tokenSection) {
-                tokenSection.style.display = 'block';
-                tokenSection.style.opacity = '1';
-                tokenSection.style.transform = 'translateY(0)';
-            }
-            
-            // Update status text only
-            if (token) {
-                showTokenStatus('Token is configured ✓', 'success');
-                // Populate the token field so admin can see/edit it
-                const tokenInput = document.getElementById('apiToken');
-                if (tokenInput) {
-                    tokenInput.value = token;
-                }
-            } else {
-                showTokenStatus('No token configured', 'info');
-            }
+        // Generate random state for OAuth security
+        function generateRandomState() {
+            return Math.random().toString(36).substring(2, 15) + 
+                   Math.random().toString(36).substring(2, 15);
         }
 
-        // Override saveToken for admin - don't hide section after saving
-        function saveToken() {
-            const tokenInput = document.getElementById('apiToken');
-            const token = tokenInput.value.trim();
+        // Check for OAuth callback
+        function checkOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
             
-            if (!token) {
-                showTokenStatus('Please enter a token', 'error');
+            if (error) {
+                alert(`OAuth error: ${error}`);
                 return;
             }
             
-            try {
-                localStorage.setItem('docusign_clm_token', token);
-                showTokenStatus('Token saved successfully!', 'success');
-                updateSystemStatus(); // Update the system status after saving
+            if (code && state) {
+                const storedState = sessionStorage.getItem('oauth_state');
+                if (state !== storedState) {
+                    alert('OAuth state mismatch - possible security issue');
+                    return;
+                }
                 
-                // Keep the token section visible and populated in admin
-                const tokenSection = document.querySelector('.token-section');
-                if (tokenSection) {
-                    tokenSection.style.display = 'block';
-                    tokenSection.style.opacity = '1';
-                    tokenSection.style.transform = 'translateY(0)';
+                // Clear the URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // Exchange code for token
+                exchangeCodeForToken(code);
+            }
+        }
+
+        // Exchange authorization code for access token
+        async function exchangeCodeForToken(code) {
+            try {
+                console.log('Exchanging authorization code for token:', code);
+                
+                // Try to exchange code for token via our proxy server
+                const isUsingProxy = window.location.hostname === 'localhost' || window.location.hostname.includes('onrender.com');
+                
+                if (isUsingProxy) {
+                    // Use proxy server to exchange code for token
+                    const response = await fetch('/api/docusign/oauth/token', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 
+                            code: code,
+                            clientId: OAUTH_CONFIG.clientId,
+                            redirectUri: OAUTH_CONFIG.redirectUri,
+                            clientSecret: OAUTH_CONFIG.clientSecret
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const tokenData = await response.json();
+                        
+                        // Store the token
+                        localStorage.setItem('docusign_clm_token', tokenData.access_token);
+                        localStorage.setItem('docusign_clm_token_type', tokenData.token_type || 'Bearer');
+                        localStorage.setItem('docusign_clm_token_expiry', Date.now() + (parseInt(tokenData.expires_in) * 1000));
+                        
+                        // Show account selection
+                        await showAccountSelection();
+                        
+                        // Update status
+                        updateSystemStatus();
+                        
+                        alert('OAuth login successful! Please select your account.');
+                        
+                    } else {
+                        throw new Error(`Token exchange failed: ${response.status}`);
+                    }
+                } else {
+                    // Direct browser - show code and suggest token method
+                    alert(`OAuth successful! Got authorization code: ${code.substring(0, 20)}...\n\nFor direct browser usage, please use the "Advanced: Use Token" option with a token from Postman or CLI.`);
+                    showTokenInput();
                 }
                 
             } catch (error) {
-                showTokenStatus('Failed to save token: ' + error.message, 'error');
+                console.error('Token exchange error:', error);
+                alert(`OAuth flow completed but token exchange failed: ${error.message}\n\nPlease use the "Advanced: Use Token" option with a token from Postman.`);
+                showTokenInput();
             }
         }
 
-        // Override clearToken for admin
-        function clearToken() {
+        // Show account selection dropdown  
+        async function showAccountSelection() {
+            const token = localStorage.getItem('docusign_clm_token');
+            if (!token) return;
+
             try {
-                localStorage.removeItem('docusign_clm_token');
-                showTokenStatus('Token cleared successfully!', 'info');
-                updateSystemStatus(); // Update the system status after clearing
+                console.log('Fetching user accounts with token:', token.substring(0, 20) + '...');
                 
-                // Clear the input field
-                const tokenInput = document.getElementById('apiToken');
-                if (tokenInput) {
-                    tokenInput.value = '';
-                }
-                
-                // Keep the token section visible in admin
-                const tokenSection = document.querySelector('.token-section');
-                if (tokenSection) {
-                    tokenSection.style.display = 'block';
-                    tokenSection.style.opacity = '1';
-                    tokenSection.style.transform = 'translateY(0)';
-                }
-            } catch (error) {
-                showTokenStatus('Failed to clear token: ' + error.message, 'error');
-            }
-        }
-
-        // Token status display function for admin
-        function showTokenStatus(message, type) {
-            const statusEl = document.getElementById('tokenStatus');
-            if (statusEl) {
-                statusEl.textContent = message;
-                statusEl.className = `status ${type}`;
-            }
-        }
-
-
-
-        function updateSystemStatus() {
-            const token = getStoredToken();
-            const config = getWorkflowConfiguration();
-            
-            // Update dynamic configuration status
-            const configStatusEl = document.getElementById('configStatus');
-            if (config && config.workflowName && config.fields) {
-                configStatusEl.textContent = 'Configured ✓';
-                configStatusEl.className = 'status-value status-success';
-            } else {
-                configStatusEl.textContent = 'Not Configured';
-                configStatusEl.className = 'status-value status-error';
-            }
-            
-            // Update workflow form status
-            const workflowFormStatusEl = document.getElementById('workflowFormStatus');
-            if (token && config && config.workflowName) {
-                workflowFormStatusEl.textContent = 'Ready ✓';
-                workflowFormStatusEl.className = 'status-value status-success';
-            } else {
-                workflowFormStatusEl.textContent = 'Configuration Required';
-                workflowFormStatusEl.className = 'status-value status-error';
-            }
-        }
-        
-        function getWorkflowConfiguration() {
-            try {
-                return JSON.parse(localStorage.getItem('workflow_configuration') || '{}');
-            } catch {
-                return {};
-            }
-        }
-
-
-
-        async function testApiConnection() {
-            const token = getStoredToken();
-            const apiStatusEl = document.getElementById('apiStatus');
-            
-            if (!token) {
-                apiStatusEl.textContent = 'No Token Configured';
-                apiStatusEl.className = 'status-value status-error';
-                return;
-            }
-            
-            apiStatusEl.textContent = 'Testing...';
-            apiStatusEl.className = 'status-value status-loading';
-            
-            try {
-                console.log('=== API Test Debug ===');
-                console.log('Testing with token:', token.substring(0, 10) + '...');
-                console.log('Full URL:', `${CONFIG.CLM_BASE_URL}${CONFIG.WORKFLOW_ENDPOINT}`);
-                console.log('=====================');
-
-                // Try a simple GET request first
-                const response = await fetch(`${CONFIG.CLM_BASE_URL}${CONFIG.WORKFLOW_ENDPOINT}`, {
-                    method: 'GET',
+                // Fetch user's accounts from Docusign - use demo environment
+                const response = await fetch('https://account-d.docusign.com/oauth/userinfo', {
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Authorization': `Bearer ${token}`
                     }
                 });
-                
-                console.log('Test response status:', response.status);
-                console.log('Test response headers:', Object.fromEntries(response.headers.entries()));
-                
-                const responseText = await response.text();
-                console.log('Test response body:', responseText);
+
+                console.log('Account fetch response status:', response.status);
                 
                 if (response.ok) {
-                    apiStatusEl.textContent = 'Connected ✓';
-                    apiStatusEl.className = 'status-value status-success';
-                } else if (response.status === 405) {
-                    // Method Not Allowed is expected for GET on workflows endpoint
-                    apiStatusEl.textContent = 'Connected ✓';
-                    apiStatusEl.className = 'status-value status-success';
-                } else if (response.status === 401) {
-                    apiStatusEl.textContent = 'Authentication Failed - Check Token';
-                    apiStatusEl.className = 'status-value status-error';
-                } else {
-                    let errorMsg = `HTTP ${response.status}`;
-                    if (responseText) {
-                        try {
-                            const errorData = JSON.parse(responseText);
-                            errorMsg = errorData.message || errorData.error || errorMsg;
-                        } catch (e) {
-                            errorMsg = responseText.length > 100 ? responseText.substring(0, 100) + '...' : responseText;
-                        }
+                    const userInfo = await response.json();
+                    console.log('User info received:', userInfo);
+                    
+                    // Store user email and name for member lookup
+                    if (userInfo.email) {
+                        localStorage.setItem('docusign_user_email', userInfo.email);
                     }
-                    throw new Error(errorMsg);
+                    if (userInfo.name) {
+                        localStorage.setItem('docusign_user_name', userInfo.name);
+                    }
+                    
+                    const accounts = userInfo.accounts || [];
+                    
+                    if (accounts.length > 0) {
+                        console.log('Found accounts:', accounts);
+                        populateAccountDropdown(accounts);
+                        document.getElementById('accountSelection').style.display = 'block';
+                    } else {
+                        console.error('No accounts found in user info');
+                        alert('No accounts found for this user.');
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error('Account fetch failed:', response.status, errorText);
+                    throw new Error(`Failed to fetch user accounts: ${response.status} - ${errorText}`);
                 }
             } catch (error) {
-                console.error('API test error:', error);
-                apiStatusEl.textContent = `Connection Failed: ${error.message}`;
-                apiStatusEl.className = 'status-value status-error';
-                
-
+                console.error('Error fetching accounts:', error);
+                alert(`Failed to fetch accounts: ${error.message}\n\nPlease try logging in again.`);
             }
         }
 
+        
 
+        // Populate account dropdown
+        function populateAccountDropdown(accounts) {
+            const dropdown = document.getElementById('accountDropdown');
+            dropdown.innerHTML = '';
+            
+            console.log('🔍 DEBUG: Populating dropdown with accounts:', accounts);
+            
+            accounts.forEach(account => {
+                console.log('🔍 DEBUG: Account:', account.account_name, 'ID:', account.account_id);
+                const option = document.createElement('option');
+                option.value = account.account_id;
+                option.textContent = `${account.account_name} (${account.account_id})`;
+                dropdown.appendChild(option);
+            });
+        }
 
-        // Helper function to get workflow configs
-        function getWorkflowConfigs() {
+        // Select account
+        async function selectAccount() {
+            const accountId = document.getElementById('accountDropdown').value;
+            if (!accountId) {
+                alert('Please select an account first.');
+                return;
+            }
+
+            console.log('🔍 DEBUG: Selected Account ID:', accountId);
+            localStorage.setItem('docusign_clm_account_id', accountId);
+            console.log('🔍 DEBUG: Stored Account ID:', localStorage.getItem('docusign_clm_account_id'));
+            
+            // Fetch current user's member ID in the CLM system
+            await fetchCurrentUserMemberId(accountId);
+            
+            updateSystemStatus();
+            
+            // Hide account selection
+            document.getElementById('accountSelection').style.display = 'none';
+            
+            // Show success message
+            alert('Account selected successfully! You can now use the portal.');
+            
+            // Reset login button
+            document.getElementById('oauthLoginBtn').style.display = 'inline-block';
+        }
+        
+        // Fetch current user's member ID from CLM system
+        async function fetchCurrentUserMemberId(accountId) {
             try {
-                return JSON.parse(localStorage.getItem('workflow_configs') || '{}');
-            } catch {
-                return {};
+                const token = localStorage.getItem('docusign_clm_token');
+                if (!token) return;
+                
+                console.log('🔍 DEBUG: Fetching current user member ID...');
+                
+                // Check if we're running through the proxy server
+                const isUsingProxy = window.location.hostname === 'localhost' || window.location.hostname.includes('onrender.com');
+                
+                let requestOptions, apiUrl;
+                
+                if (isUsingProxy) {
+                    apiUrl = '/api/docusign/current-member';
+                    requestOptions = {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                            'x-account-id': accountId
+                        }
+                    };
+                } else {
+                    apiUrl = `https://apiuatna11.springcm.com/v2/${accountId}/members/current`;
+                    requestOptions = {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json',
+                            'Cache-Control': 'no-cache'
+                        }
+                    };
+                }
+                
+                console.log('🔍 DEBUG: Fetching from:', apiUrl);
+                
+                const response = await fetch(apiUrl, requestOptions);
+                
+                if (response.ok) {
+                    const memberData = await response.json();
+                    console.log('🔍 DEBUG: Current user member data:', memberData);
+                    
+                    // Store the current user's member ID
+                    if (memberData.Href) {
+                        const memberId = memberData.Href.split('/').pop();
+                        localStorage.setItem('docusign_current_member_id', memberId);
+                        console.log('🔍 DEBUG: Stored current member ID:', memberId);
+                    } else if (memberData.Id) {
+                        localStorage.setItem('docusign_current_member_id', memberData.Id);
+                        console.log('🔍 DEBUG: Stored current member ID:', memberData.Id);
+                    }
+                } else {
+                    console.error('Failed to fetch current user member ID:', response.status);
+                }
+            } catch (error) {
+                console.error('Error fetching current user member ID:', error);
             }
         }
 
+        // Clear all credentials
+        function clearCredentials() {
+            if (confirm('Are you sure you want to clear all stored credentials? This will log you out.')) {
+                localStorage.removeItem('docusign_clm_token');
+                localStorage.removeItem('docusign_clm_token_type');
+                localStorage.removeItem('docusign_clm_token_expiry');
+                localStorage.removeItem('docusign_clm_account_id');
+                localStorage.removeItem('docusign_current_member_id');
+                localStorage.removeItem('docusign_user_email');
+                localStorage.removeItem('docusign_user_name');
+                sessionStorage.removeItem('oauth_state');
+                
+                // Hide sections
+                document.getElementById('accountSelection').style.display = 'none';
+                
+                // Show login button
+                document.getElementById('oauthLoginBtn').style.display = 'inline-block';
+                
+                updateSystemStatus();
+                alert('All credentials cleared successfully.');
+            }
+        }
 
+        // Update system status display
+        function updateSystemStatus() {
+            const token = localStorage.getItem('docusign_clm_token');
+            const accountId = localStorage.getItem('docusign_clm_account_id');
+            const tokenExpiry = localStorage.getItem('docusign_clm_token_expiry');
+
+            // Update authentication status
+            const authStatus = document.getElementById('authStatus');
+            if (token && accountId) {
+                authStatus.textContent = 'Authenticated';
+                authStatus.className = 'status-badge status-success';
+            } else {
+                authStatus.textContent = 'Not Authenticated';
+                authStatus.className = 'status-badge status-warning';
+            }
+
+            // Update account ID status
+            const accountIdStatus = document.getElementById('accountIdStatus');
+            if (accountId) {
+                accountIdStatus.textContent = accountId.substring(0, 8) + '...';
+                accountIdStatus.className = 'status-badge status-success';
+            } else {
+                accountIdStatus.textContent = 'Not Set';
+                accountIdStatus.className = 'status-badge status-warning';
+            }
+
+            // Update token status
+            const tokenStatus = document.getElementById('tokenStatus');
+            if (token) {
+                tokenStatus.textContent = 'Set';
+                tokenStatus.className = 'status-badge status-success';
+            } else {
+                tokenStatus.textContent = 'Not Set';
+                tokenStatus.className = 'status-badge status-warning';
+            }
+
+            // Update token expiry status
+            const tokenExpiryStatus = document.getElementById('tokenExpiryStatus');
+            if (tokenExpiry) {
+                const expiryDate = new Date(parseInt(tokenExpiry));
+                const now = new Date();
+                const timeLeft = expiryDate - now;
+                
+                if (timeLeft > 0) {
+                    const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                    tokenExpiryStatus.textContent = `${hoursLeft} hours left`;
+                    tokenExpiryStatus.className = hoursLeft > 1 ? 'status-badge status-success' : 'status-badge status-warning';
+                } else {
+                    tokenExpiryStatus.textContent = 'Expired';
+                    tokenExpiryStatus.className = 'status-badge status-error';
+                }
+            } else {
+                tokenExpiryStatus.textContent = 'Unknown';
+                tokenExpiryStatus.className = 'status-badge status-warning';
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for OAuth callback first
+            checkOAuthCallback();
+            
+            // Update system status
+            updateSystemStatus();
+            
+            // If already authenticated, show account selection
+            if (localStorage.getItem('docusign_clm_token')) {
+                showAccountSelection();
+            }
+        });
     </script>
 </body>
 </html> 

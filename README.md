@@ -5,9 +5,14 @@ A dynamic, configurable portal for submitting workflows to Docusign CLM with cus
 ## 🚀 Quick Start
 
 1. **Start the server**: `npm start`
-2. **Configure API token**: Visit `/admin.html`
-3. **Configure workflow**: Visit `/config.html` 
-4. **Submit workflows**: Visit `/dynamic-form.html`
+2. **Choose authentication**: Visit `/admin.html` and either:
+   - **Click "Login with Docusign OAuth"** (recommended)
+   - **Click "Advanced: Use Token"** (power users)
+3. **Select your account** from the discovered list
+4. **Configure workflow**: Visit `/config.html` 
+5. **Submit workflows**: Visit `/dynamic-form.html`
+
+> **New!** 🎉 Dual authentication options - OAuth or direct token entry!
 
 ## 📋 Core Features
 
@@ -28,18 +33,20 @@ A dynamic, configurable portal for submitting workflows to Docusign CLM with cus
 - Queue-based task management
 - Filter and search functionality
 
-### **⚙️ Admin Setup** (`/admin.html`)
-- Centralized API token management
+### **🔐 Login & Setup** (`/admin.html`)
+- OAuth authentication with Docusign
+- Automatic account selection
+- Secure token management
 - System configuration
-- Security settings
 
 ## 🛠️ How It Works
 
-### **1. Configuration Process**
-1. **Set API Token**: Configure once in Admin panel
-2. **Define Workflow**: Set workflow name in Configuration
-3. **Provide XML Structure**: Paste example XML parameters
-4. **Generate Form**: System creates form fields automatically
+### **1. Authentication Process**
+1. **Login with Docusign**: Click "Login with Docusign" button
+2. **Select Account**: Choose from available Docusign accounts
+3. **Define Workflow**: Set workflow name in Configuration
+4. **Provide XML Structure**: Paste example XML parameters
+5. **Generate Form**: System creates form fields automatically
 
 ### **2. Dynamic Form Generation**
 The system parses your XML structure and creates appropriate form fields:
@@ -63,8 +70,13 @@ The system parses your XML structure and creates appropriate form fields:
 
 ### **Initial Setup**
 1. Visit `http://localhost:3000/admin.html`
-2. Enter your Docusign CLM API token
-3. Save token (stored securely in browser)
+2. Click "Connect Docusign Account" button
+3. Enter your Docusign token (from Postman, CLI, etc.)
+4. Click "Discover My Accounts" to find your accounts
+5. Select your account from the dropdown
+6. You're ready to use the portal!
+
+> **Note**: No setup required! Just get a token from Postman, CLI, or Developer Console. See [OAUTH-SETUP-GUIDE.md](OAUTH-SETUP-GUIDE.md) for detailed instructions.
 
 ### **Workflow Configuration**
 1. Visit `http://localhost:3000/config.html`
@@ -78,6 +90,25 @@ The system parses your XML structure and creates appropriate form fields:
 3. Preview XML (optional)
 4. Submit workflow
 
+## 🔐 Dual Authentication Options
+
+The portal now supports **two authentication methods** to give users flexibility:
+
+### **🚀 OAuth Login (Recommended)**
+- **One-click OAuth** - using generic client ID pattern
+- **Account selection** - choose from discovered accounts
+- **Professional flow** - industry-standard OAuth experience
+
+### **🔧 Advanced: Token Entry**  
+- **Direct token entry** - paste token from Postman/CLI
+- **Immediate access** - works with any valid token
+- **Power user option** - for developers and integrators
+
+### **Flexible & Reliable! 🎉**
+Choose OAuth for simplicity or token entry for direct control. Both methods support automatic account discovery!
+
+📖 **See [OAUTH-SETUP-GUIDE.md](OAUTH-SETUP-GUIDE.md) for how it works**
+
 ## 🔧 Technical Details
 
 ### **Field Type Detection**
@@ -89,7 +120,8 @@ The system parses your XML structure and creates appropriate form fields:
 - **Default**: Text input
 
 ### **Storage**
-- **API Token**: `localStorage.docusign_clm_token`
+- **OAuth Token**: `localStorage.docusign_clm_token`
+- **Account ID**: `localStorage.docusign_clm_account_id`
 - **Configuration**: `localStorage.workflow_configuration`
 - All data stored locally in browser
 

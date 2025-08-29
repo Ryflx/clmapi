@@ -27,7 +27,6 @@
         <div class="landing-section">
             <div class="use-cases">
                 <div class="use-case-card" onclick="navigateTo('dynamic-form.html')">
-                    <div class="card-icon">🚀</div>
                     <h3>Kick Off Workflow</h3>
                     <p>Submit workflows using your configured form structure and parameters.</p>
                     <div class="card-features">
@@ -39,7 +38,6 @@
                 </div>
 
                 <div class="use-case-card" onclick="navigateTo('config.html')">
-                    <div class="card-icon">🔧</div>
                     <h3>Configuration</h3>
                     <p>Configure your custom workflow and form structure for dynamic form generation.</p>
                     <div class="card-features">
@@ -51,7 +49,6 @@
                 </div>
 
                 <div class="use-case-card" onclick="navigateTo('tasks.html')">
-                    <div class="card-icon">📋</div>
                     <h3>Tasks</h3>
                     <p>View and manage workflow tasks that require manual review and approval.</p>
                     <div class="card-features">
@@ -63,15 +60,14 @@
                 </div>
 
                 <div class="use-case-card admin-card" onclick="navigateTo('admin.html')">
-                    <div class="card-icon">⚙️</div>
-                    <h3>Admin Setup</h3>
-                    <p>Configure API tokens and system settings.</p>
+                    <h3>Login & Setup</h3>
+                    <p>Connect your Docusign account and configure system settings.</p>
                     <div class="card-features">
-                        <span>• Token Management</span>
-                        <span>• API Configuration</span>
-                        <span>• System Settings</span>
+                        <span>• Docusign OAuth Login</span>
+                        <span>• Account Selection</span>
+                        <span>• System Configuration</span>
                     </div>
-                    <button class="card-btn admin-btn">Admin Settings</button>
+                    <button class="card-btn admin-btn">Login with Docusign</button>
                 </div>
             </div>
 
@@ -79,8 +75,8 @@
                 <h3>System Status</h3>
                 <div class="status-grid">
                     <div class="status-item">
-                        <span class="status-label">API Token:</span>
-                        <span id="tokenStatus" class="status-value">Not Configured</span>
+                        <span class="status-label">Authentication:</span>
+                        <span id="authStatus" class="status-value">Not Authenticated</span>
                     </div>
                     <div class="status-item">
                         <span class="status-label">Workflow Configuration:</span>
@@ -95,6 +91,24 @@
     <script>
         // Navigation function
         function navigateTo(page) {
+            // Check if this page requires authentication
+            const requiresAuth = page.includes('dynamic-form.html') || 
+                                page.includes('tasks.html') || 
+                                page.includes('config.html');
+            
+            if (requiresAuth) {
+                // Check if user is authenticated
+                const token = localStorage.getItem('docusign_clm_token');
+                const accountId = localStorage.getItem('docusign_clm_account_id');
+                
+                if (!token || !accountId) {
+                    // Not authenticated, go to admin first
+                    window.location.href = 'admin.html';
+                    return;
+                }
+            }
+            
+            // Either doesn't require auth, or user is authenticated
             window.location.href = page;
         }
 
@@ -105,15 +119,16 @@
         });
 
         function checkSystemStatus() {
-            // Check API token
+            // Check authentication status
             const token = localStorage.getItem('docusign_clm_token');
-            const tokenStatusEl = document.getElementById('tokenStatus');
-            if (token) {
-                tokenStatusEl.textContent = 'Configured ✓';
-                tokenStatusEl.className = 'status-value status-success';
+            const accountId = localStorage.getItem('docusign_clm_account_id');
+            const authStatusEl = document.getElementById('authStatus');
+            if (token && accountId) {
+                authStatusEl.textContent = 'Authenticated ✓';
+                authStatusEl.className = 'status-value status-success';
             } else {
-                tokenStatusEl.textContent = 'Not Configured';
-                tokenStatusEl.className = 'status-value status-error';
+                authStatusEl.textContent = 'Not Authenticated';
+                authStatusEl.className = 'status-value status-error';
             }
 
             // Check workflow configuration
@@ -144,6 +159,108 @@
             } else {
                 logoContainer.style.display = 'none';
             }
+            
+            // Apply brand colors
+            if (config && config.brandColor) {
+                applyBrandColors(config.brandColor);
+            }
+        }
+        
+        function applyBrandColors(brandColor) {
+            // Create or update custom CSS for brand colors
+            let styleSheet = document.getElementById('brand-colors');
+            if (!styleSheet) {
+                styleSheet = document.createElement('style');
+                styleSheet.id = 'brand-colors';
+                document.head.appendChild(styleSheet);
+            }
+            
+            // Calculate darker version for gradients and hover states
+            const darkerColor = darkenColor(brandColor, 20);
+            
+            // Define CSS rules with the brand color
+            const css = `
+                /* Headers and main elements */
+                header {
+                    background: linear-gradient(135deg, ${brandColor} 0%, ${darkerColor} 100%) !important;
+                    box-shadow: 0 4px 15px ${brandColor}33 !important;
+                }
+                
+                /* Buttons */
+                .card-btn {
+                    background: linear-gradient(135deg, ${brandColor} 0%, ${darkerColor} 100%) !important;
+                }
+                
+                .card-btn:hover {
+                    background: linear-gradient(135deg, ${darkerColor} 0%, ${darkenColor(brandColor, 30)} 100%) !important;
+                }
+                
+                .submit-btn {
+                    background: linear-gradient(135deg, ${brandColor} 0%, ${darkerColor} 100%) !important;
+                }
+                
+                .submit-btn:hover {
+                    background: linear-gradient(135deg, ${darkerColor} 0%, ${darkenColor(brandColor, 30)} 100%) !important;
+                    box-shadow: 0 5px 15px ${brandColor}4D !important;
+                }
+                
+                /* Navigation and links */
+                .portal-nav {
+                    border-left: 4px solid ${brandColor} !important;
+                }
+                
+                .nav-brand a {
+                    color: ${brandColor} !important;
+                }
+                
+                .nav-link:hover {
+                    background: ${brandColor} !important;
+                }
+                
+                /* Form elements */
+                .token-input button {
+                    background: ${brandColor} !important;
+                }
+                
+                .token-input button:hover {
+                    background: ${darkerColor} !important;
+                }
+                
+                .action-btn {
+                    background: ${brandColor} !important;
+                }
+                
+                .action-btn:hover {
+                    background: ${darkerColor} !important;
+                }
+                
+                /* Status and accent elements */
+                .token-info {
+                    border-left: 4px solid ${brandColor} !important;
+                }
+                
+                .form-section {
+                    border-left: 4px solid ${brandColor} !important;
+                }
+            `;
+            
+            styleSheet.textContent = css;
+        }
+        
+        function darkenColor(color, percent) {
+            // Convert hex to RGB
+            const hex = color.replace('#', '');
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            
+            // Darken each component
+            const newR = Math.max(0, Math.floor(r * (100 - percent) / 100));
+            const newG = Math.max(0, Math.floor(g * (100 - percent) / 100));
+            const newB = Math.max(0, Math.floor(b * (100 - percent) / 100));
+            
+            // Convert back to hex
+            return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
         }
         
         function getWorkflowConfiguration() {

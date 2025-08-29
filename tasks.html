@@ -8,23 +8,24 @@
 </head>
 <body>
     <div class="container">
-        <nav class="portal-nav">
-            <div class="nav-brand">
-                <a href="index.html">← Docusign CLM Portal</a>
-            </div>
-            <div class="nav-title">
-                <h2>Tasks</h2>
-            </div>
-            <div class="nav-actions">
-                <button id="refreshTasks" class="nav-link">Refresh</button>
-                <a href="admin.html" class="nav-link">Admin</a>
-            </div>
-        </nav>
+        <!-- Back Navigation -->
+        <div class="back-nav">
+            <a href="index.html" class="back-btn">← Back to Portal</a>
+        </div>
 
         <header>
-            <h1>Workflow Tasks</h1>
-            <p>Manage pending tasks and document approvals</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 30px;">
+                <div>
+                    <h1>Workflow Tasks</h1>
+                </div>
+                <button id="refreshTasks" class="task-btn primary">Refresh Tasks</button>
+            </div>
         </header>
+        
+        <!-- Page Description -->
+        <div style="margin-bottom: 20px; padding: 0 30px;">
+            <p style="color: #666; margin: 0; font-size: 1.1rem; padding: 0 10px;">Manage pending tasks and document approvals</p>
+        </div>
 
         <!-- Loading State -->
         <div id="loadingState" class="status-display" style="display: none;">
@@ -50,19 +51,27 @@
             <!-- Filters -->
             <div class="filter-section" id="filterSection" style="display: none;">
                 <div class="filter-group">
+                    <label for="taskViewFilter">Task View</label>
+                    <select id="taskViewFilter" onchange="applyFilters()">
+                        <option value="all">All Tasks</option>
+                        <option value="my-tasks">My Tasks Only</option>
+                        <option value="unassigned">Unassigned Tasks</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <label for="groupFilter">Workflow Queue</label>
-                    <select id="groupFilter">
+                    <select id="groupFilter" onchange="applyFilters()">
                         <option value="">All queues</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label for="assigneeFilter">Assignee</label>
-                    <select id="assigneeFilter">
+                    <select id="assigneeFilter" onchange="applyFilters()">
                         <option value="">All assignees</option>
                     </select>
                 </div>
                 <div class="filter-group">
-                    <button class="task-btn secondary" id="clearFilters">Clear filters</button>
+                    <button class="task-btn secondary" id="clearFilters" onclick="clearFilters()">Clear filters</button>
                 </div>
             </div>
 
@@ -105,10 +114,15 @@
 
         function checkConfiguration() {
             const token = getStoredToken();
+            const accountId = getStoredAccountId();
             
-            if (!token) {
+            if (!token || !accountId) {
                 document.getElementById('configWarning').style.display = 'block';
                 document.getElementById('configWarning').className = 'status-display error show';
+                document.getElementById('configWarning').innerHTML = `
+                    <strong>Authentication Required</strong><br>
+                    Please <a href="admin.html" style="color: #fff; text-decoration: underline;">log in with Docusign</a> to access your tasks.
+                `;
                 return false;
             }
             return true;
@@ -130,9 +144,12 @@
 
         async function loadTasks(silent = false) {
             const token = getStoredToken();
-            console.log('Token available:', !!token);
-            if (!token) {
-                showError('API token not configured');
+            const accountId = getStoredAccountId();
+            console.log('🔍 DEBUG: Token available:', !!token, 'Account ID available:', !!accountId);
+            console.log('🔍 DEBUG: Actual Account ID:', accountId);
+            console.log('🔍 DEBUG: Token preview:', token ? token.substring(0, 20) + '...' : 'null');
+            if (!token || !accountId) {
+                showError('Authentication required. Please log in with Docusign.');
                 return;
             }
 
@@ -196,6 +213,7 @@
         async function fetchUserWorkflowQueues(token) {
             // Check if we're running through the proxy server
             const isUsingProxy = window.location.hostname === 'localhost' && window.location.port === '3000';
+            const accountId = getStoredAccountId();
             
             let requestOptions, apiUrl;
             
@@ -205,11 +223,12 @@
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'x-account-id': accountId
                     }
                 };
             } else {
-                apiUrl = `${CONFIG.CLM_BASE_URL}/members/current/workflowqueues`;
+                apiUrl = `${CONFIG.CLM_BASE_URL}/${accountId}/members/current/workflowqueues`;
                 requestOptions = {
                     method: 'GET',
                     headers: {
@@ -255,6 +274,7 @@
 
             // Check if we're running through the proxy server
             const isUsingProxy = window.location.hostname === 'localhost' && window.location.port === '3000';
+            const accountId = getStoredAccountId();
             
             let requestOptions, apiUrl;
             
@@ -266,11 +286,17 @@
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'x-account-id': accountId
                     }
                 };
             } else {
-                apiUrl = memberHref;
+                // For direct calls, we need to update the href to include the account ID if it's relative
+                if (memberHref.startsWith('/')) {
+                    apiUrl = `${CONFIG.CLM_BASE_URL}/${accountId}${memberHref}`;
+                } else {
+                    apiUrl = memberHref;
+                }
                 requestOptions = {
                     method: 'GET',
                     headers: {
@@ -309,6 +335,7 @@
         async function fetchQueueWorkItems(token, queueId) {
             // Check if we're running through the proxy server
             const isUsingProxy = window.location.hostname === 'localhost' && window.location.port === '3000';
+            const accountId = getStoredAccountId();
             
             let requestOptions, apiUrl;
             
@@ -318,11 +345,12 @@
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'x-account-id': accountId
                     }
                 };
             } else {
-                apiUrl = `${CONFIG.CLM_BASE_URL}/workflowqueues/${queueId}/workitems`;
+                apiUrl = `${CONFIG.CLM_BASE_URL}/${accountId}/workflowqueues/${queueId}/workitems`;
                 requestOptions = {
                     method: 'GET',
                     headers: {
@@ -426,17 +454,38 @@
         }
 
         function applyFilters() {
+            const selectedTaskView = document.getElementById('taskViewFilter').value;
             const selectedQueueId = document.getElementById('groupFilter').value;
             const selectedMemberId = document.getElementById('assigneeFilter').value;
+            const currentMemberId = localStorage.getItem('docusign_current_member_id');
 
             filteredWorkItems = allWorkItems.filter(item => {
-                const matchesQueue = selectedQueueId ? item.QueueId === selectedQueueId : true;
                 const itemMemberId = (item.Assignee?.Href ? item.Assignee.Href.split('/').pop() : '00000000-0000-0000-0000-000000000000');
+                
+                // Apply task view filter
+                let matchesTaskView = true;
+                if (selectedTaskView === 'my-tasks') {
+                    // Only show tasks assigned to the current user
+                    matchesTaskView = currentMemberId && itemMemberId === currentMemberId;
+                } else if (selectedTaskView === 'unassigned') {
+                    // Only show unassigned tasks
+                    matchesTaskView = itemMemberId === '00000000-0000-0000-0000-000000000000';
+                }
+                
+                const matchesQueue = selectedQueueId ? item.QueueId === selectedQueueId : true;
                 const matchesAssignee = selectedMemberId ? itemMemberId === selectedMemberId : true;
-                return matchesQueue && matchesAssignee;
+                
+                return matchesTaskView && matchesQueue && matchesAssignee;
             });
 
             renderTasks(filteredWorkItems);
+        }
+        
+        function clearFilters() {
+            document.getElementById('taskViewFilter').value = 'all';
+            document.getElementById('groupFilter').value = '';
+            document.getElementById('assigneeFilter').value = '';
+            applyFilters();
         }
 
         function updateAssigneeFilterOption(memberId, name) {

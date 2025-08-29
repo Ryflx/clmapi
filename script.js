@@ -1,7 +1,7 @@
 // Configuration - Docusign CLM API details
 const CONFIG = {
-    // Docusign CLM base URL and account ID
-    CLM_BASE_URL: 'https://apiuatna11.springcm.com/v2/75315137-680d-4dd5-b8bf-844d81c18164',
+    // Docusign CLM base URL (account ID is now dynamic from OAuth)
+    CLM_BASE_URL: 'https://apiuatna11.springcm.com/v2',
     // Workflows endpoint
     WORKFLOW_ENDPOINT: '/workflows',
     // Token storage key
@@ -38,9 +38,6 @@ const PRODUCTS = {
 
 // DOM Elements
 const elements = {
-    apiToken: document.getElementById('apiToken'),
-    tokenStatus: document.getElementById('tokenStatus'),
-    tokenSection: document.querySelector('.token-section'),
     signupForm: document.getElementById('signupForm'),
     submissionStatus: document.getElementById('submissionStatus'),
     submitBtn: document.querySelector('.submit-btn'),
@@ -58,73 +55,43 @@ const elements = {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    checkTokenStatus();
+    checkAuthenticationStatus();
     setupFormHandlers();
 });
 
-// Token Management Functions
-function saveToken() {
-    const token = elements.apiToken.value.trim();
+// OAuth Authentication Functions
+function checkAuthenticationStatus() {
+    const token = getStoredToken();
+    const accountId = getStoredAccountId();
     
-    if (!token) {
-        showTokenStatus('Please enter a token', 'error');
-        return;
+    // Only redirect on pages that actually need authentication
+    const needsAuth = window.location.pathname.includes('dynamic-form.html') || 
+                     window.location.pathname.includes('tasks.html') ||
+                     window.location.pathname.includes('config.html');
+    
+    if (!token || !accountId) {
+        // Only redirect if we're on a page that needs authentication
+        if (needsAuth) {
+            window.location.href = 'admin.html';
+        }
+        return false;
     }
     
-    try {
-        localStorage.setItem(CONFIG.TOKEN_KEY, token);
-        elements.apiToken.value = '';
-        showTokenStatus('Token saved successfully!', 'success');
-        
-        // Hide the token section after successful save with smooth animation
-        setTimeout(() => {
-            elements.tokenSection.style.opacity = '0';
-            elements.tokenSection.style.transform = 'translateY(-10px)';
-            setTimeout(() => {
-                elements.tokenSection.style.display = 'none';
-            }, 300); // Wait for animation to complete
-        }, 1500); // Wait 1.5 seconds to let user see the success message
-        
-    } catch (error) {
-        showTokenStatus('Failed to save token: ' + error.message, 'error');
-    }
-}
-
-function clearToken() {
-    try {
-        localStorage.removeItem(CONFIG.TOKEN_KEY);
-        showTokenStatus('Token cleared successfully!', 'info');
-        // Show the token section again so user can enter a new token
-        elements.tokenSection.style.display = 'block';
-        elements.tokenSection.style.opacity = '1';
-        elements.tokenSection.style.transform = 'translateY(0)';
-    } catch (error) {
-        showTokenStatus('Failed to clear token: ' + error.message, 'error');
-    }
+    return true;
 }
 
 function getStoredToken() {
     return localStorage.getItem(CONFIG.TOKEN_KEY);
 }
 
-function checkTokenStatus() {
-    const token = getStoredToken();
-    if (token) {
-        showTokenStatus('Token is configured ✓', 'success');
-        // Hide the token section if token is already configured
-        elements.tokenSection.style.display = 'none';
-    } else {
-        showTokenStatus('No token configured', 'info');
-        // Ensure the token section is visible if no token
-        elements.tokenSection.style.display = 'block';
-        elements.tokenSection.style.opacity = '1';
-        elements.tokenSection.style.transform = 'translateY(0)';
-    }
+function getStoredAccountId() {
+    return localStorage.getItem('docusign_clm_account_id');
 }
 
-function showTokenStatus(message, type) {
-    elements.tokenStatus.textContent = message;
-    elements.tokenStatus.className = `status ${type}`;
+function isAuthenticated() {
+    const token = getStoredToken();
+    const accountId = getStoredAccountId();
+    return !!(token && accountId);
 }
 
 // Product Selection Functions
@@ -520,26 +487,40 @@ async function submitToDocusignCLM(formData, token) {
         "Params": xmlData
     };
     
-    // Check if we're running through the proxy server
-    const isUsingProxy = window.location.hostname === 'localhost' && window.location.port === '3000';
-    
-    let requestOptions, apiUrl;
-    
-    if (isUsingProxy) {
-        // Use proxy server (no CORS issues)
-        console.log('🔄 Using proxy server (CORS-safe)');
-        apiUrl = '/api/docusign/workflows';
-        requestOptions = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ token, payload })
-        };
+            // Check if we're running through the proxy server or on Render
+        const isUsingProxy = window.location.hostname === 'localhost' || window.location.hostname.includes('onrender.com');
+        
+        let requestOptions, apiUrl;
+        
+        if (isUsingProxy) {
+            // Use proxy server (no CORS issues)
+            console.log('🔄 Using proxy server (CORS-safe)');
+            apiUrl = '/api/docusign/workflows';
+            
+            // Get the stored account ID
+            const accountId = getStoredAccountId();
+            if (!accountId) {
+                throw new Error('Account ID not configured. Please authenticate in the Admin panel.');
+            }
+            
+            requestOptions = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token, payload, accountId })
+            };
     } else {
         // Direct API call (requires CORS-disabled browser or CORS support)
         console.log('🌐 Direct API call (requires CORS-disabled browser)');
-        apiUrl = `${CONFIG.CLM_BASE_URL}${CONFIG.WORKFLOW_ENDPOINT}`;
+        
+        // Get the stored account ID for direct API calls
+        const accountId = getStoredAccountId();
+        if (!accountId) {
+            throw new Error('Account ID not configured. Please authenticate in the Admin panel.');
+        }
+        
+        apiUrl = `${CONFIG.CLM_BASE_URL}/${accountId}${CONFIG.WORKFLOW_ENDPOINT}`;
         requestOptions = {
             method: 'POST',
             headers: {

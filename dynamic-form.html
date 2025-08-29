@@ -149,18 +149,10 @@
 </head>
 <body>
     <div class="container">
-        <nav class="portal-nav">
-            <div class="nav-brand">
-                <a href="index.html">← Portal Home</a>
-            </div>
-            <div class="nav-title">
-                <h2>Dynamic Workflow Form</h2>
-            </div>
-            <div class="nav-actions">
-                <a href="config.html" class="nav-link">⚙️ Configure</a>
-                <a href="tasks.html" class="nav-link">📋 Tasks</a>
-            </div>
-        </nav>
+        <!-- Back Navigation -->
+        <div class="back-nav">
+            <a href="index.html" class="back-btn">← Back to Portal</a>
+        </div>
 
         <header>
             <h1 id="pageTitle">Workflow Submission Form</h1>
@@ -248,13 +240,14 @@
         
         function showConfigurationInfo() {
             const hasToken = !!localStorage.getItem('docusign_clm_token');
+            const hasAccountId = !!localStorage.getItem('docusign_clm_account_id');
             
             document.getElementById('configStatus').innerHTML = `
                 <div class="config-info">
                     <h3>📋 Current Configuration</h3>
                     <p><strong>Workflow:</strong> ${currentConfig.workflowName}</p>
                     <p><strong>Fields:</strong> ${dynamicFields.length} form fields</p>
-                    <p><strong>API Token:</strong> ${hasToken ? '✅ Configured' : '❌ Not configured - <a href="admin.html">Configure in Admin</a>'}</p>
+                    <p><strong>Authentication:</strong> ${hasToken && hasAccountId ? '✅ Authenticated with Docusign' : '❌ Not authenticated - <a href="admin.html">Login with Docusign</a>'}</p>
                     ${currentConfig.baseUrl ? `<p><strong>Base URL:</strong> ${currentConfig.baseUrl}</p>` : ''}
                 </div>
             `;
@@ -269,8 +262,9 @@
             event.preventDefault();
             
             const token = localStorage.getItem('docusign_clm_token');
-            if (!token) {
-                showSubmissionStatus('API token not configured. Please set it up in the Admin panel first.', 'error');
+            const accountId = localStorage.getItem('docusign_clm_account_id');
+            if (!token || !accountId) {
+                showSubmissionStatus('Authentication required. Please log in with Docusign in the Admin panel first.', 'error');
                 return;
             }
             
@@ -322,6 +316,43 @@
             // Display preview
             document.getElementById('xmlContent').textContent = xmlData;
             document.getElementById('xmlPreview').style.display = 'block';
+            
+            // Also show API call preview
+            previewAPICall();
+        }
+        
+        function previewAPICall() {
+            // Collect current form data
+            const formData = {};
+            const form = document.getElementById('dynamicForm');
+            const formDataObj = new FormData(form);
+            
+            for (let [key, value] of formDataObj.entries()) {
+                formData[key] = value;
+            }
+            
+            // Generate XML
+            const xmlData = createDynamicXMLParams(formData, dynamicFields);
+            
+            // Create the API call payload
+            const apiPayload = {
+                Name: currentConfig.workflowName || 'Workflow',
+                Params: xmlData
+            };
+            
+            // Display API call preview with syntax highlighting
+            const apiCallContent = document.getElementById('apiCallContent');
+            apiCallContent.innerHTML = syntaxHighlightJSON(apiPayload);
+            document.getElementById('apiCallPreview').style.display = 'block';
+        }
+        
+        function syntaxHighlightJSON(obj) {
+            const jsonString = JSON.stringify(obj, null, 2);
+            return jsonString
+                .replace(/(".*?":)/g, '<span style="color: #9cdcfe; font-weight: 600;">$1</span>')
+                .replace(/(".*?")/g, '<span style="color: #ce9178;">$1</span>')
+                .replace(/(true|false|null)/g, '<span style="color: #569cd6;">$1</span>')
+                .replace(/(\d+)/g, '<span style="color: #b5cea8;">$1</span>');
         }
         
 

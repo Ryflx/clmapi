@@ -4,7 +4,7 @@ const fetch = require('node-fetch');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Enhanced CORS configuration for ngrok compatibility
 const corsOptions = {
@@ -12,14 +12,15 @@ const corsOptions = {
         // Allow requests with no origin (mobile apps, Postman, etc.)
         if (!origin) return callback(null, true);
         
-        // Allow localhost and ngrok domains
+        // Allow localhost, ngrok, and Render domains
         const allowedOrigins = [
             'http://localhost:3000',
             'https://localhost:3000',
             /^https:\/\/.*\.ngrok\.io$/,
             /^https:\/\/.*\.ngrok-free\.app$/,
             /^http:\/\/.*\.ngrok\.io$/,
-            /^http:\/\/.*\.ngrok-free\.app$/
+            /^http:\/\/.*\.ngrok-free\.app$/,
+            /^https:\/\/.*\.onrender\.com$/
         ];
         
         const isAllowed = allowedOrigins.some(allowed => {
@@ -70,6 +71,16 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
+// Serve index explicitly for root requests (Render health checks)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Respond to HEAD / for health checks
+app.head('/', (req, res) => {
+    res.status(200).end();
+});
+
 // Explicit preflight handler for complex requests
 app.options('*', (req, res) => {
     console.log('Preflight request received for:', req.url);
@@ -92,19 +103,91 @@ app.use((req, res, next) => {
 // Serve static files from current directory
 app.use(express.static('.'));
 
+// OAuth token exchange endpoint
+app.post('/api/docusign/oauth/token', async (req, res) => {
+    try {
+        const { code, clientId, redirectUri, clientSecret } = req.body;
+        
+        if (!code || !clientId || !redirectUri) {
+            return res.status(400).json({ 
+                error: 'Missing required parameters', 
+                message: 'code, clientId, and redirectUri are required' 
+            });
+        }
+
+        console.log('=== OAuth Token Exchange ===');
+        console.log('Client ID:', clientId);
+        console.log('Redirect URI:', redirectUri);
+        console.log('Authorization Code:', code.substring(0, 10) + '...');
+
+        // Exchange authorization code for access token
+        const requestBody = new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: redirectUri,
+            client_id: clientId
+        });
+
+        // Add client secret if provided (for confidential clients)
+        if (clientSecret) {
+            requestBody.append('client_secret', clientSecret);
+        }
+
+        const tokenResponse = await fetch('https://account-d.docusign.com/oauth/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: requestBody
+        });
+
+        if (tokenResponse.ok) {
+            const tokenData = await tokenResponse.json();
+            console.log('Token exchange successful!');
+            
+            // Ensure CORS headers are set
+            res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+            res.header('Access-Control-Allow-Credentials', 'true');
+            res.json(tokenData);
+        } else {
+            const errorText = await tokenResponse.text();
+            console.error('Token exchange failed:', tokenResponse.status, errorText);
+            res.status(tokenResponse.status).json({ 
+                error: 'Token exchange failed', 
+                status: tokenResponse.status,
+                details: errorText 
+            });
+        }
+    } catch (error) {
+        console.error('OAuth token exchange error:', error);
+        res.status(500).json({ 
+            error: 'Internal server error', 
+            message: error.message 
+        });
+    }
+});
+
 // Proxy endpoint for Docusign CLM API
 app.post('/api/docusign/workflows', async (req, res) => {
     try {
-        const { token, payload } = req.body;
+        const { token, payload, accountId } = req.body;
+        
+        if (!accountId) {
+            return res.status(400).json({
+                error: 'Account ID required',
+                message: 'Please provide your Docusign CLM Account ID in the Admin panel'
+            });
+        }
         
         console.log('=== Docusign CLM Workflow Request ===');
         console.log('Origin:', req.headers.origin);
         console.log('User-Agent:', req.headers['user-agent']);
         console.log('Token present:', !!token);
+        console.log('Account ID:', accountId);
         console.log('Payload:', JSON.stringify(payload, null, 2));
         
         const response = await fetch(
-            'https://apiuatna11.springcm.com/v2/75315137-680d-4dd5-b8bf-844d81c18164/workflows',
+            `https://apiuatna11.springcm.com/v2/${accountId}/workflows`,
             {
                 method: 'POST',
                 headers: {
@@ -124,13 +207,30 @@ app.post('/api/docusign/workflows', async (req, res) => {
             console.error('Status:', response.status);
             console.error('Status Text:', response.statusText);
             console.error('Response Headers:', Object.fromEntries(response.headers.entries()));
-            console.error('Response Body:', responseData);
+            
+            // Try to get the full error response body
+            let errorResponseText = '';
+            try {
+                errorResponseText = await response.text();
+                console.error('Full Error Response Body:', errorResponseText);
+                
+                // Try to parse as JSON for better error details
+                try {
+                    const errorJson = JSON.parse(errorResponseText);
+                    console.error('Parsed Error JSON:', errorJson);
+                } catch (parseError) {
+                    console.error('Could not parse error response as JSON:', parseError.message);
+                }
+            } catch (readError) {
+                console.error('Could not read error response body:', readError.message);
+            }
             
             return res.status(response.status).json({
                 error: 'API request failed',
                 status: response.status,
                 statusText: response.statusText,
-                details: responseData
+                details: errorResponseText || 'No error details available',
+                fullResponse: errorResponseText
             });
         }
         
@@ -200,10 +300,11 @@ app.get('/api/docusign/current-user-workitems', async (req, res) => {
     }
 });
 
-// Proxy endpoint for Docusign CLM User Workflow Queues API
-app.get('/api/docusign/user-workflow-queues', async (req, res) => {
+// Proxy endpoint for Docusign CLM Current Member API
+app.get('/api/docusign/current-member', async (req, res) => {
     try {
         const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
+        const accountId = req.headers['x-account-id'] || req.query.accountId;
         
         if (!token) {
             return res.status(401).json({
@@ -212,10 +313,73 @@ app.get('/api/docusign/user-workflow-queues', async (req, res) => {
             });
         }
         
-        console.log('Proxying user workflow queues request to Docusign CLM...');
+        if (!accountId) {
+            return res.status(400).json({
+                error: 'No account ID provided',
+                message: 'Account ID is required in headers (x-account-id) or query params (accountId)'
+            });
+        }
+        
+        console.log(`Proxying current member request to Docusign CLM for account ${accountId}...`);
         
         const response = await fetch(
-            'https://apiuatna11.springcm.com/v2/75315137-680d-4dd5-b8bf-844d81c18164/members/current/workflowqueues',
+            `https://apiuatna11.springcm.com/v2/${accountId}/members/current`,
+            {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            }
+        );
+        
+        const responseData = await response.json();
+        
+        if (!response.ok) {
+            console.error('Current Member API Error:', response.status, responseData);
+            return res.status(response.status).json({
+                error: 'Current Member API request failed',
+                details: responseData
+            });
+        }
+        
+        console.log('Current Member Success:', responseData);
+        res.json(responseData);
+        
+    } catch (error) {
+        console.error('Current Member Proxy Error:', error);
+        res.status(500).json({
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
+});
+
+// Proxy endpoint for Docusign CLM User Workflow Queues API
+app.get('/api/docusign/user-workflow-queues', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
+        const accountId = req.headers['x-account-id'] || req.query.accountId;
+        
+        if (!token) {
+            return res.status(401).json({
+                error: 'No token provided',
+                message: 'Authorization token is required'
+            });
+        }
+        
+        if (!accountId) {
+            return res.status(400).json({
+                error: 'No account ID provided',
+                message: 'Account ID is required in headers (x-account-id) or query params (accountId)'
+            });
+        }
+        
+        console.log(`Proxying user workflow queues request to Docusign CLM for account ${accountId}...`);
+        
+        const response = await fetch(
+            `https://apiuatna11.springcm.com/v2/${accountId}/members/current/workflowqueues`,
             {
                 method: 'GET',
                 headers: {
@@ -350,6 +514,7 @@ app.get('/api/docusign/member/:memberId', async (req, res) => {
     try {
         const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
         const memberId = req.params.memberId;
+        const accountId = req.headers['x-account-id'] || req.query.accountId;
         
         if (!token) {
             return res.status(401).json({
@@ -365,10 +530,17 @@ app.get('/api/docusign/member/:memberId', async (req, res) => {
             });
         }
         
-        console.log(`Proxying member details request for member ${memberId} to Docusign CLM...`);
+        if (!accountId) {
+            return res.status(400).json({
+                error: 'No account ID provided',
+                message: 'Account ID is required in headers (x-account-id) or query params (accountId)'
+            });
+        }
+        
+        console.log(`Proxying member details request for member ${memberId} to Docusign CLM for account ${accountId}...`);
         
         const response = await fetch(
-            `https://apiuatna11.springcm.com/v2/75315137-680d-4dd5-b8bf-844d81c18164/members/${memberId}`,
+            `https://apiuatna11.springcm.com/v2/${accountId}/members/${memberId}`,
             {
                 method: 'GET',
                 headers: {
@@ -518,6 +690,7 @@ app.get('/api/docusign/queue-workitems/:queueId', async (req, res) => {
     try {
         const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
         const queueId = req.params.queueId;
+        const accountId = req.headers['x-account-id'] || req.query.accountId;
         
         if (!token) {
             return res.status(401).json({
@@ -533,10 +706,17 @@ app.get('/api/docusign/queue-workitems/:queueId', async (req, res) => {
             });
         }
         
-        console.log(`Proxying queue work items request for queue ${queueId} to Docusign CLM...`);
+        if (!accountId) {
+            return res.status(400).json({
+                error: 'No account ID provided',
+                message: 'Account ID is required in headers (x-account-id) or query params (accountId)'
+            });
+        }
+        
+        console.log(`Proxying queue work items request for queue ${queueId} to Docusign CLM for account ${accountId}...`);
         
         const response = await fetch(
-            `https://apiuatna11.springcm.com/v2/75315137-680d-4dd5-b8bf-844d81c18164/workflowqueues/${queueId}/workitems`,
+            `https://apiuatna11.springcm.com/v2/${accountId}/workflowqueues/${queueId}/workitems`,
             {
                 method: 'GET',
                 headers: {
